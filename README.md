@@ -17,7 +17,7 @@ Start the app:
 ```
 npm start
 ```
-Open **http://localhost:3000** and create an account with a username or sign in using your username (email sign-in remains supported). Each account has its own private workspace, interviews and saved analyses.
+Open **http://localhost:3001** and create an account with a username or sign in using your username (email sign-in remains supported). Each account has its own private workspace, interviews and saved analyses.
 
 ## How to use it
 1. Choose a use case and review its preview, then click **Continue with this use case**. Use **Back to use cases** on the next step if you want to change it.
