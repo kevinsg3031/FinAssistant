@@ -1,41 +1,29 @@
 # FinAssistant — Local Edition (Agentic / RAG)
 
-Agentic requirement gathering, retrieval-grounded compliance mapping, and SDLC advice for financial software — running entirely on your own machine, calling the Google AI Studio Gemini API with your own key.
+Agentic requirement gathering, retrieval-grounded compliance mapping, and SDLC advice for financial software — running entirely on your own machine.
 
 Choose a use case first, then select stakeholder roles and conduct interviews. FinAssistant runs a chain of specialist agents — extraction, clarification, classification, compliance (grounded in a local knowledge base), risk, SDLC selection, documentation and validation — pausing for your input if anything's ambiguous, and flagging anything low-confidence for your review at the end.
 
 ## Requirements
 - **Node.js 18 or later**
-- **A Google AI Studio API key** — get one at https://aistudio.google.com/apikey. API usage is subject to Google's quotas and billing terms for your project.
 
 ## Run it
+Install dependencies once:
 ```
 cd finreq-local
-cp .env.example .env
 npm install
 ```
-Open `.env` and paste your Google AI Studio key in:
+Start the app:
 ```
-GOOGLE_API_KEY=...
+npm start
 ```
-Then:
-```
-node server.js
-```
-Open **http://localhost:3000** and create an account with a username or sign in using your username (email sign-in remains supported). Each account has its own private workspace, interviews and saved analyses. The key lives only in `.env`, read once by the Node process at startup — there's no key field anywhere in the UI, and the browser never sees it.
+Open **http://localhost:3000** and create an account with a username or sign in using your username (email sign-in remains supported). Each account has its own private workspace, interviews and saved analyses.
 
 ## How to use it
 1. Choose a use case and review its preview, then click **Continue with this use case**. Use **Back to use cases** on the next step if you want to change it.
 2. Pick a stakeholder role and click **Start interview** — a chat opens. Type answers as that stakeholder; the agent asks follow-ups when an answer is vague or incomplete, and tells you when it has enough. Click **Save interview**, then repeat for other roles if you like (or add pasted documents under **Additional input sources** — sensitive fields are masked automatically). A normal browser refresh restores the current step and its work; opening the app URL as a fresh navigation starts at use-case selection. Switching use cases discards unanalysed drafts.
 3. Click **Run multi-agent analysis**. Watch the stage list — each row is a real, separate agent call completing in sequence. If the Clarification agent flags anything, the pipeline pauses and asks you directly; answer and click **Continue analysis**. A fully completed analysis, including its inputs, is archived automatically. If a run fails or is abandoned, its draft interviews and sources are discarded.
 4. Review results across seven tabs: Requirements (with confidence scores and auto-escalated items), Compliance (with citation chips linking to the knowledge base), Risk register, Conflicts, SDLC recommendation (six scored candidates, cited, with pros/cons), Traceability, and a browsable Knowledge base.
-
-## Changing the model
-Defaults to `gemini-3.8-flash`. Override in `.env` or on the command line:
-```
-GOOGLE_MODEL=gemini-3.8-flash node server.js
-```
-Embeddings (used for retrieval) default to `gemini-embedding-001`; override with `GOOGLE_EMBEDDING_MODEL`.
 
 ## Architecture
 
@@ -72,7 +60,7 @@ node tests/e2e.js      # drives the real UI + server end to end with Google AI m
 The end-to-end test runs the full chain — adaptive interview, masking, the clarification gate, all seven agents, citations, escalation, the KB browser — against a deterministic fake Google AI API (`tests/mock-google.js`), and asserts from the mock's call log that retrieval really fed the Clarification, Compliance, SDLC and Documentation agents with knowledge-base evidence. The mock is a test harness only; it is never used when you run the app normally.
 
 ## Honest limitations
-- **Verified with a mocked Google AI API, not a live one.** The test suite proves the wiring, gates, retrieval plumbing and UI; it can't prove how well a real model follows the prompts. Expect to tune prompts once you've run it against your own key.
+- **Verified with a mocked Google AI API, not a live one.** The test suite proves the wiring, gates, retrieval plumbing and UI; it can't prove how well a live model follows the prompts.
 - **Cost and latency are both higher than the old single-call design.** An interview is N calls (roughly one per exchange), and a full pipeline run is 6 more, plus embeddings for retrieval. Model pricing and quotas depend on the Google AI Studio project — see `docs/agent-architecture.md`.
 - **Local, self-managed accounts.** Application data is stored in a SQLite database on this machine, not in a remotely backed-up service. Anyone who can reach the app can create an account; deploy behind appropriate network controls if that is not intended. Protect and back up `data/finreq.sqlite`; the app does not provide account recovery or a durable audit service.
 - **The knowledge base is an illustrative seed (37 items), not real regulatory text.** See `docs/knowledge-base.md` for what a production knowledge base would need on top of this.
