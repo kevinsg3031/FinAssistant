@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FinReq — Agentic Requirements &amp; SDLC Advisor</title>
+<title>FinAssistant — Agentic Requirements &amp; SDLC Advisor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -37,24 +37,76 @@ body:not(.authenticated)>header,body:not(.authenticated)>main,body:not(.authenti
 .auth-screen input{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font:inherit;font-size:.9rem;padding:10px}
 .auth-error{min-height:1.4em;color:var(--red);font-size:.82rem;margin-top:10px}
 .auth-toggle{border:0;background:none;padding:8px 0;color:var(--accent);font:inherit;cursor:pointer}
-.account-bar{display:flex;align-items:center;gap:12px;margin-top:8px;font-size:.82rem;color:var(--ink-soft)}
-.account-bar .small-btn{margin:0}
+.account-bar{position:absolute;top:24px;right:clamp(16px,4vw,40px);display:flex;align-items:center;font-size:.82rem;color:var(--ink-soft)}
+.theme-toggle{display:grid;width:38px;height:38px;place-items:center;margin-right:10px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--ink);cursor:pointer}
+.theme-toggle:hover,.theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.theme-toggle svg{width:18px;height:18px}
+.account-menu{position:relative}
+.account-avatar{display:grid;width:38px;height:38px;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--accent);color:var(--panel);font:600 1rem "IBM Plex Sans",system-ui,sans-serif;cursor:pointer}
+.account-avatar:hover,.account-avatar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.account-popover{position:absolute;z-index:20;top:calc(100% + 10px);right:0;width:min(280px,calc(100vw - 32px));padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);color:var(--ink)}
+.account-popover[hidden]{display:none}
+.account-email{overflow-wrap:anywhere;margin-bottom:12px;font-size:.82rem}
+.account-popover .small-btn{width:100%;margin:0;text-align:center}
 h1,h2,h3{font-family:"Source Serif 4",Georgia,serif;font-weight:600;margin:0}
 .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
-header{border-bottom:1px solid var(--line);padding:30px clamp(16px,4vw,40px) 24px;padding-top:calc(30px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px}
+header{position:relative;border-bottom:1px solid var(--line);padding:30px clamp(16px,4vw,40px) 24px;padding-top:calc(30px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px}
 .mark{width:34px;height:4px;background:var(--accent);border-radius:2px}
 .kicker{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
 header h1{font-size:2.15rem;letter-spacing:-.02em;line-height:1}
 header .tagline{margin:0;font-family:"Source Serif 4",Georgia,serif;font-style:italic;font-weight:400;color:var(--ink-soft);font-size:1rem;max-width:640px}
-main{max-width:1280px;margin:0 auto;padding:28px clamp(16px,4vw,40px) 60px;display:grid;grid-template-columns:360px 1fr;gap:26px}
-@media (max-width:860px){main{grid-template-columns:1fr}}
+main{max-width:1280px;margin:0 auto;padding:28px clamp(16px,4vw,40px) 60px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:26px}
+main.selecting-use-case{grid-template-columns:minmax(0,1120px);justify-content:center}
+main.selecting-use-case #content{display:none}
+@media (max-width:860px){main{grid-template-columns:1fr}.account-bar{top:22px}}
+@media (max-width:640px){.uc-grid{grid-template-columns:1fr}.uc-btn{min-height:0}.continue-row .run-btn{width:100%}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-.side{padding:22px;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto}
+.side-column{min-width:0;align-self:start}
+.side{padding:22px;align-self:start}
 .side h2{font-size:.98rem;margin-bottom:12px}
-.uc-btn{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;background:none;border:1px solid var(--line);border-radius:var(--radius);padding:9px 11px;margin-bottom:6px;color:var(--ink);font:inherit;font-size:.86rem;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+.uc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:22px}
+.case-chooser{margin-top:22px}
+.uc-btn{display:flex;align-items:flex-start;gap:12px;width:100%;min-height:150px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;color:var(--ink);font:inherit;font-size:.9rem;cursor:pointer;transition:border-color .15s ease,background .15s ease,transform .15s ease}
 .uc-btn:hover{border-color:var(--accent)}
+.uc-btn:hover{transform:translateY(-1px)}
 .uc-btn.active{border-color:var(--accent);background:var(--accent-soft);font-weight:500}
+.uc-card-copy{min-width:0}
+.uc-card-title{font-family:"Source Serif 4",Georgia,serif;font-size:1.04rem;font-weight:600;line-height:1.25}
+.uc-card-desc{display:block;color:var(--ink-soft);font-family:"Source Serif 4",Georgia,serif;font-size:.82rem;font-style:italic;line-height:1.45;margin:8px 0}
+.uc-card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.uc-card-meta .meta-chip{font-size:.68rem;padding:3px 8px}
 .uc-tag{display:block;color:var(--ink-soft);font-size:.72rem;font-weight:400;margin-top:2px}
+.flow-progress{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+.flow-intro{color:var(--ink-soft);font-size:.88rem;margin:4px 0 0}
+.continue-row{display:flex;justify-content:flex-end;margin-top:16px}
+.continue-row .run-btn{width:auto;min-width:240px;margin:0}
+.shared-project-info{border-top:1px solid var(--line);margin-top:26px;padding-top:24px}
+.workflow-heading{font-size:1.15rem;margin-bottom:16px}
+.what-you-get-heading{font-size:1.05rem;margin:24px 0 12px}
+.workspace-start{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);padding:18px}
+.workspace-start p{color:var(--ink-soft);font-size:.88rem;margin:6px 0 0}
+.change-use-case-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+.change-use-case-header[hidden]{display:none}
+.back-btn{flex:0 0 auto;margin:0}
+.selected-use-case-label{display:block;color:var(--ink-soft);font-size:.68rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
+.selected-use-case-name{font-size:.9rem;font-weight:600}
+@media (max-width:480px){.change-use-case-header{align-items:flex-start;flex-direction:column}}
+.role-briefing{min-height:100%;padding:clamp(22px,4vw,40px)}
+.briefing-eyebrow{color:var(--accent);font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.role-briefing h2{font-size:1.55rem;margin:6px 0 8px}
+.briefing-intro{max-width:760px;margin:0;color:var(--ink-soft);font-size:.94rem}
+.briefing-focus{margin-top:28px;padding:18px 20px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--radius);background:var(--paper)}
+.briefing-focus h3,.briefing-section h3{font-size:1rem;margin:0 0 6px}
+.briefing-focus p{margin:0;color:var(--ink-soft);font-size:.88rem}
+.briefing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
+.briefing-section{padding:18px 20px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper)}
+.briefing-section ul{display:grid;gap:8px;margin:12px 0 0;padding:0;list-style:none}
+.briefing-section li{position:relative;padding-left:17px;color:var(--ink-soft);font-size:.84rem}
+.briefing-section li::before{position:absolute;left:0;color:var(--accent);content:"•"}
+.briefing-note{margin-top:18px;color:var(--ink-soft);font-size:.78rem}
+@media (max-width:640px){.briefing-grid{grid-template-columns:1fr}}
+.step-title{font-size:1.15rem}
+.step-desc{color:var(--ink-soft)}
 label{display:block;font-size:.78rem;color:var(--ink-soft);margin:14px 0 6px}
 textarea,select{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font:inherit;font-size:.86rem;padding:9px 10px;resize:vertical}
 textarea{min-height:60px}
@@ -71,7 +123,7 @@ textarea{min-height:60px}
 .small-btn{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:7px 11px;font:inherit;font-size:.8rem;cursor:pointer;color:var(--ink);margin-top:10px;transition:border-color .15s ease}
 .small-btn:hover{border-color:var(--accent)}
 .hint{font-size:.76rem;color:var(--ink-soft);margin-top:10px}
-.content{padding:22px clamp(16px,3vw,28px)}
+.content{padding:22px clamp(16px,3vw,28px);min-width:0}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
 .tab{display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:9px 13px;font:inherit;font-size:.85rem;color:var(--ink-soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s ease}
 .tab svg{opacity:.8}
@@ -104,7 +156,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .pc ul{margin:4px 0 0;padding-left:16px;font-size:.82rem}
 .pc.pro ul li::marker{color:var(--green)}
 .pc.con ul li::marker{color:var(--red)}
-@media (max-width:520px){.proscons{grid-template-columns:1fr}}
+@media (max-width:520px){.proscons{grid-template-columns:1fr}.account-bar{top:16px;right:16px}header{padding:22px 68px 24px 16px}}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:3px 6px 3px 11px;font-size:.75rem;margin:0 6px 6px 0}
 .chip button{background:none;border:none;color:inherit;cursor:pointer;font-size:.85rem;padding:0 3px}
 details{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
@@ -198,11 +250,16 @@ footer{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 40px;color:
 <section class="panel auth-screen" id="authScreen" aria-labelledby="authTitle">
   <div class="mark"></div>
   <div class="kicker">Agentic Requirements Platform</div>
-  <h2 id="authTitle">Sign in to FinReq</h2>
+  <h2 id="authTitle">Sign in to FinAssistant</h2>
   <p id="authDescription">Your interviews, workspace and saved analyses are private to your account.</p>
   <form id="authForm">
-    <label for="authEmail">Email</label>
-    <input id="authEmail" name="email" type="email" autocomplete="username" maxlength="254" required>
+    <div id="authUsernameRow" hidden>
+      <label for="authUsername">Username</label>
+      <input id="authUsername" name="username" type="text" autocomplete="username" minlength="3" maxlength="30" pattern="[A-Za-z0-9._\-]{3,30}">
+      <div class="hint">3–30 characters; letters, numbers, dots, underscores or hyphens.</div>
+    </div>
+    <label for="authEmail" id="authIdentityLabel">Username or email</label>
+    <input id="authEmail" name="identity" type="text" autocomplete="username" maxlength="254" required>
     <label for="authPassword">Password</label>
     <input id="authPassword" name="password" type="password" autocomplete="current-password" required>
     <button class="run-btn" id="authSubmit" type="submit">Sign in</button>
@@ -213,39 +270,68 @@ footer{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 40px;color:
 <header>
   <div class="mark"></div>
   <div class="kicker">Agentic Requirements Platform</div>
-  <h1>FinReq</h1>
+  <h1>FinAssistant</h1>
   <p class="tagline">A multi-agent workspace for gathering requirements, mapping compliance and choosing an SDLC — built for financial software teams.</p>
-  <div class="account-bar"><span id="accountEmail"></span><button class="small-btn" id="signOutBtn" type="button">Sign out</button></div>
+  <div class="account-bar">
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+    </button>
+    <div class="account-menu">
+      <button class="account-avatar" id="accountMenuToggle" type="button" aria-label="Open account menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="accountPopover"></button>
+      <div class="account-popover" id="accountPopover" role="dialog" aria-label="Account details" hidden>
+        <div class="account-email" id="accountEmail"></div>
+        <button class="small-btn" id="signOutBtn" type="button">Log out</button>
+      </div>
+    </div>
+  </div>
 </header>
 <main>
-  <div class="panel side">
-    <h2>Use case</h2>
-    <div id="ucList"></div>
+  <div class="side-column">
+    <div id="changeUseCase" class="change-use-case-header" hidden>
+      <div class="selected-use-case">
+        <span class="selected-use-case-label">Selected use case</span>
+        <div class="selected-use-case-name" id="selectedUseCaseName"></div>
+      </div>
+      <button class="small-btn back-btn" id="backToCasesBtn" type="button">Choose a different use case</button>
+    </div>
+    <div class="panel side">
+      <section id="sharedProjectInfo" class="shared-project-info"></section>
+      <div class="flow-progress" id="flowProgress"></div>
+      <section id="chooseHeading">
+        <h2>Choose a use case</h2>
+        <p class="flow-intro">Review each initiative and its summary, then select one to continue.</p>
+      </section>
+      <div id="caseChooser" class="case-chooser">
+        <div id="ucList" class="uc-grid"></div>
+        <div class="continue-row"><button class="run-btn" id="continueUseCaseBtn" type="button" disabled>Continue to interviews</button></div>
+      </div>
+      <section id="interviewOptions" hidden>
+        <h2>Stakeholder interviews</h2>
+        <div id="ivList"></div>
+        <label>Interview as</label>
+        <div id="rolePicker" class="role-grid"></div>
+        <button class="run-btn" id="startIvBtn" type="button">Start interview</button>
 
-    <h2 style="margin-top:20px">Stakeholder interviews</h2>
-    <div id="ivList"></div>
-    <label>Interview as</label>
-    <div id="rolePicker" class="role-grid"></div>
-    <button class="small-btn" id="startIvBtn">Start interview</button>
+        <details>
+          <summary>Additional input sources (optional)</summary>
+          <label for="srcType">Source type</label>
+          <select id="srcType"></select>
+          <label for="srcText">Content</label>
+          <textarea id="srcText" style="min-height:80px" placeholder="Paste raw content. Card/account numbers, IDs, emails, phone numbers and password-like fields are classified and masked automatically before use."></textarea>
+          <button class="small-btn" id="addSrcBtn" type="button">Classify &amp; add</button>
+          <div id="srcBadge"></div>
+          <div id="srcList" style="margin-top:10px"></div>
+        </details>
 
-    <details>
-      <summary>Additional input sources (optional)</summary>
-      <label for="srcType">Source type</label>
-      <select id="srcType"></select>
-      <label for="srcText">Content</label>
-      <textarea id="srcText" style="min-height:80px" placeholder="Paste raw content. Card/account numbers, IDs, emails, phone numbers and password-like fields are classified and masked automatically before use."></textarea>
-      <button class="small-btn" id="addSrcBtn">Classify &amp; add</button>
-      <div id="srcBadge"></div>
-      <div id="srcList" style="margin-top:10px"></div>
-    </details>
+        <button class="run-btn" id="runBtn" type="button">Run multi-agent analysis</button>
+        <div class="hint" id="hint"></div>
 
-    <button class="run-btn" id="runBtn">Run multi-agent analysis</button>
-    <div class="hint" id="hint"></div>
-
-    <details id="historyDetails">
-      <summary>Saved analyses</summary>
-      <div id="historyList" class="history-list"><div class="hint">Loading saved analyses…</div></div>
-    </details>
+        <details id="historyDetails">
+          <summary>Saved analyses</summary>
+          <div id="historyList" class="history-list"><div class="hint">Loading saved analyses…</div></div>
+        </details>
+      </section>
+    </div>
   </div>
   <div class="panel content" id="content"></div>
 </main>
@@ -261,15 +347,15 @@ const USE_CASES=[
  {id:"reporting",name:"Regulatory Reporting",tag:"Regulatory returns & audit trail",sample:"Automate generation of periodic regulatory returns to the central bank with full audit trail, data lineage, and sign-off workflow before submission."}
 ];
 const STAKEHOLDER_ROLES=[
- {id:"cust",label:"Customers & end users"},
- {id:"ba",label:"Business analysts"},
- {id:"po",label:"Product owners"},
- {id:"arch",label:"Software architects & developers"},
- {id:"sec",label:"Information-security teams"},
- {id:"legal",label:"Compliance & legal officers"},
- {id:"risk",label:"Risk-management teams"},
- {id:"ops",label:"Operations personnel"},
- {id:"audit",label:"Auditors & regulators"}
+ {id:"cust",label:"Customers & end users",perspective:"The lived experience of using the service: what people are trying to do, where they struggle, and what makes the experience feel clear and trustworthy.",topics:["Common tasks and points of friction","Desired outcomes and what success feels like","Confusing steps, errors, and recovery","Accessibility, confidence, and trust"],prepare:["A recent example of a task that was difficult or successful","What you expected to happen versus what happened","The impact of delays, errors, or unclear messages"]},
+ {id:"ba",label:"Business analysts",perspective:"The business need translated into observable processes, rules, inputs, outputs, and measurable outcomes.",topics:["Business objective and success measures","Current workflow, actors, and handoffs","Decision rules, exceptions, and dependencies","Information entering and leaving the process"],prepare:["Current process notes or a workflow sketch","Examples of business rules and edge cases","Existing KPI definitions or baseline measurements"]},
+ {id:"po",label:"Product owners",perspective:"The product boundaries and delivery choices: which user outcomes matter most, what belongs in scope, and how acceptance will be judged.",topics:["User and business value by priority","MVP boundaries and deferred capabilities","Acceptance criteria and release outcomes","Dependencies, constraints, and trade-offs"],prepare:["Prioritised backlog items or feature requests","Acceptance examples for high-value capabilities","Known release milestones and scope decisions"]},
+ {id:"arch",label:"Software architects & developers",perspective:"The technical shape of the solution: system boundaries, integration contracts, quality attributes, and implementation constraints.",topics:["Systems, APIs, data flows, and ownership","Volume, latency, throughput, and availability targets","Failure modes, retries, and consistency needs","Platform, migration, and technical constraints"],prepare:["Architecture or context diagrams","API contracts and integration documentation","Known traffic volumes, service targets, or platform limits"]},
+ {id:"sec",label:"Information-security teams",perspective:"How sensitive information and critical actions are protected against misuse, exposure, and disruption.",topics:["Data classification, storage, and movement","Identity, authentication, authorisation, and privileged access","Encryption, monitoring, and incident response","Threat scenarios, abuse cases, and security controls"],prepare:["Data inventories or classification standards","Threat models, security requirements, or control baselines","Relevant incident patterns and security review findings"]},
+ {id:"legal",label:"Compliance & legal officers",perspective:"The obligations and legal constraints that may apply, and the evidence needed to demonstrate that they are being met.",topics:["Applicable obligations by product and jurisdiction","Customer disclosures, consent, and lawful use","Retention, deletion, and records obligations","Regulatory reporting and approval requirements"],prepare:["Relevant policy or obligation references","Jurisdictions, legal entities, and product boundaries","Retention schedules and reporting commitments"]},
+ {id:"risk",label:"Risk-management teams",perspective:"The ways the service could cause loss or fail, how existing controls reduce that exposure, and when residual risk needs escalation.",topics:["Credible loss and failure scenarios","Likelihood, impact, and risk appetite","Preventive, detective, and recovery controls","Control gaps, thresholds, and escalation paths"],prepare:["Risk taxonomy and appetite or threshold definitions","Existing control descriptions and evidence","Relevant incidents, near misses, or open risk findings"]},
+ {id:"ops",label:"Operations personnel",perspective:"How the service behaves in day-to-day operations, especially when automation, integrations, or customer data do not behave as expected.",topics:["Manual steps, queues, and handoffs","Exceptions, retries, reconciliation, and recovery","Service levels, staffing, and support coverage","Operational monitoring and escalation"],prepare:["Runbooks or standard operating procedures","Examples of exception cases and resolution steps","Service-level targets, queue volumes, and staffing assumptions"]},
+ {id:"audit",label:"Auditors & regulators",perspective:"Whether decisions and changes can be independently reconstructed, supported by evidence, and reported in the required format.",topics:["Decision and activity records needed for audit","Evidence ownership, integrity, and retrieval","Prior findings and remediation status","Reporting format, frequency, and review trail"],prepare:["Audit evidence requests or reporting templates","Prior findings and agreed remediation actions","Record-retention rules and evidence ownership"]}
 ];
 const SOURCE_TYPES=["Stakeholder conversation","Interview transcript","Questionnaire","Email / meeting notes","Existing requirement document","Banking policy or procedure","Regulatory or compliance document","API or database specification","Legacy-system documentation","Incident report or audit finding"];
 const STAGES=[
@@ -282,7 +368,7 @@ const STAGES=[
  {key:"document",label:"Documentation & validation"}
 ];
 
-let state={selected:USE_CASES[0].id, interviews:{}, sources:{}, formRole:STAKEHOLDER_ROLES[0].id, activeInterview:null, pipeline:null, approvals:{}, tab:"req", views:{}, kbCache:null, kbFilter:null, archiveId:null, user:null};
+let state={phase:"choose", selected:USE_CASES[0].id, previewUseCase:null, interviews:{}, sources:{}, formRole:STAKEHOLDER_ROLES[0].id, activeInterview:null, pipeline:null, approvals:{}, tab:"req", kbCache:null, kbFilter:null, archiveId:null, user:null};
 let persistenceTimer=null;
 let persistenceQueue=Promise.resolve();
 let activeRequests=0;
@@ -296,8 +382,18 @@ function trackRequest(start){
 }
 
 function persistableState(){
-  const views={...state.views, [state.selected]:{pipeline:state.pipeline, approvals:state.approvals, tab:state.tab}};
-  return {version:1, selected:state.selected, interviews:state.interviews, sources:state.sources, formRole:state.formRole, activeInterview:state.activeInterview, views};
+  const snapshot={version:2, phase:state.phase, selected:state.selected, previewUseCase:state.previewUseCase, formRole:state.formRole};
+  if(state.archiveId&&state.pipeline?.complete){
+    snapshot.archiveId=state.archiveId;
+    return snapshot;
+  }
+  snapshot.interviews=state.interviews[state.selected]||[];
+  snapshot.sources=state.sources[state.selected]||[];
+  snapshot.activeInterview=state.activeInterview;
+  snapshot.pipeline=state.pipeline;
+  snapshot.approvals=state.approvals;
+  snapshot.tab=state.tab;
+  return snapshot;
 }
 function schedulePersistence(){
   clearTimeout(persistenceTimer);
@@ -319,20 +415,51 @@ async function restorePersistedState(){
   if(!res.ok) throw new Error("Could not load saved application data.");
   const result=await res.json();
   const saved=result.data||{};
-  if(saved.version!==1) return;
+  if(saved.version!==2) return;
+  const navigationType=performance.getEntriesByType("navigation")[0]?.type;
+  state.phase=navigationType==="reload"&&saved.phase==="interviews"?"interviews":"choose";
   state.selected=USE_CASES.some(u=>u.id===saved.selected)?saved.selected:USE_CASES[0].id;
-  state.interviews=saved.interviews&&typeof saved.interviews==="object"?saved.interviews:{};
-  state.sources=saved.sources&&typeof saved.sources==="object"?saved.sources:{};
+  state.previewUseCase=state.phase==="interviews"&&USE_CASES.some(u=>u.id===saved.previewUseCase)?saved.previewUseCase:null;
+  state.interviews=Array.isArray(saved.interviews)&&saved.interviews.length?{[state.selected]:saved.interviews}:{};
+  state.sources=Array.isArray(saved.sources)&&saved.sources.length?{[state.selected]:saved.sources}:{};
   state.formRole=STAKEHOLDER_ROLES.some(r=>r.id===saved.formRole)?saved.formRole:STAKEHOLDER_ROLES[0].id;
-  state.activeInterview=saved.activeInterview||null;
-  state.views=saved.views&&typeof saved.views==="object"?saved.views:{};
-  const view=state.views[state.selected]||{};
-  state.pipeline=view.pipeline||null;
-  state.approvals=view.approvals||{};
-  state.tab=view.tab||"req";
+  state.activeInterview=saved.activeInterview&&typeof saved.activeInterview==="object"?saved.activeInterview:null;
+  state.pipeline=saved.pipeline?.complete||saved.pipeline?.clarificationQueue?saved.pipeline:null;
+  state.approvals=saved.approvals&&typeof saved.approvals==="object"?saved.approvals:{};
+  state.tab=typeof saved.tab==="string"?saved.tab:"req";
+  state.archiveId=state.phase==="interviews"&&typeof saved.archiveId==="string"?saved.archiveId:null;
 }
 
 function q(id){return document.getElementById(id)}
+function currentTheme(){
+  const explicit=document.documentElement.dataset.theme;
+  return explicit|| (window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+}
+function renderThemeIcon(theme){
+  q("themeIcon").innerHTML=theme==="dark"
+    ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
+    : '<path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/>';
+}
+function setTheme(theme,persist=true){
+  document.documentElement.dataset.theme=theme;
+  const next=theme==="dark"?"light":"dark";
+  const label=`Switch to ${next} mode`;
+  q("themeToggle").setAttribute("aria-label",label);
+  q("themeToggle").title=label;
+  renderThemeIcon(theme);
+  if(persist)localStorage.setItem("finassistant-theme",theme);
+}
+function initializeTheme(){
+  const saved=localStorage.getItem("finassistant-theme");
+  if(saved==="light"||saved==="dark")setTheme(saved,false);
+  else{
+    const theme=currentTheme();
+    const label=`Switch to ${theme==="dark"?"light":"dark"} mode`;
+    q("themeToggle").setAttribute("aria-label",label);
+    q("themeToggle").title=label;
+    renderThemeIcon(theme);
+  }
+}
 function escapeHtml(s){ const d=document.createElement("div"); d.textContent=s==null?"":String(s); return d.innerHTML; }
 function makeId(){return globalThis.crypto?.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`}
 function initials(label){
@@ -375,53 +502,129 @@ async function refreshAnalysisHistory(){
   const container=q("historyList"); if(!container)return;
   try{
     const records=await api("/api/analyses");
-    container.innerHTML=records.length?records.map(item=>`<div class="history-card"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${escapeHtml(item.useCaseName)} · ${new Date(item.createdAt).toLocaleString()}</div><div class="history-actions"><button class="small-btn" data-open-analysis="${escapeHtml(item.id)}">Open</button><button class="small-btn" data-delete-analysis="${escapeHtml(item.id)}">Delete</button></div></div>`).join(""):`<div class="hint">No saved analyses yet.</div>`;
+    container.innerHTML=records.length?records.map(item=>`<div class="history-card"><div class="history-title">${escapeHtml(item.title)}</div><div class="history-meta">${new Date(item.createdAt).toLocaleString()}</div><div class="history-actions"><button class="small-btn" data-open-analysis="${escapeHtml(item.id)}">Open</button><button class="small-btn" data-delete-analysis="${escapeHtml(item.id)}">Delete</button></div></div>`).join(""):`<div class="hint">No saved analyses yet.</div>`;
     container.querySelectorAll("[data-open-analysis]").forEach(button=>button.onclick=()=>openSavedAnalysis(button.dataset.openAnalysis));
     container.querySelectorAll("[data-delete-analysis]").forEach(button=>button.onclick=()=>removeSavedAnalysis(button.dataset.deleteAnalysis));
   }catch(e){container.innerHTML=`<div class="hint">${escapeHtml(e.message)}</div>`}
 }
 async function saveCurrentAnalysis(){
   if(!state.pipeline?.complete){q("hint").textContent="Finish an analysis before saving it.";return}
-  const title=prompt("Name this analysis",`${USE_CASES.find(u=>u.id===state.selected).name} — ${new Date().toLocaleDateString()}`);
+  const title=prompt("Name this analysis",`Analysis — ${new Date().toLocaleDateString()}`);
   if(title===null)return;
   if(!title.trim()){q("hint").textContent="Enter a name for the saved analysis.";return}
   try{
     const inputs=state.pipeline.savedInputs||{interviews:state.interviews[state.selected]||[],sources:state.sources[state.selected]||[]};
-    await api("/api/analyses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:makeId(),title,useCase:USE_CASES.find(u=>u.id===state.selected),state:{interviews:inputs.interviews,sources:inputs.sources,pipeline:state.pipeline,approvals:state.approvals}})});
-    state.archiveId=null;
+    const saved=await api("/api/analyses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:makeId(),title,useCase:USE_CASES.find(u=>u.id===state.selected),state:{interviews:inputs.interviews,sources:inputs.sources,pipeline:state.pipeline,approvals:state.approvals}})});
+    state.archiveId=saved.id;
     q("hint").textContent="Analysis and its interviews saved.";
     await refreshAnalysisHistory();
+    renderContent();
+    schedulePersistence();
   }catch(e){q("hint").textContent=e.message}
+}
+async function archiveCompletedAnalysis(){
+  const inputs=state.pipeline.savedInputs;
+  const useCase=USE_CASES.find(u=>u.id===state.selected);
+  const id=makeId();
+  const title=`${useCase.name} — ${new Date().toLocaleDateString()}`;
+  try{
+    const saved=await api("/api/analyses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+      id,title,useCase,state:{interviews:inputs.interviews,sources:inputs.sources,pipeline:state.pipeline,approvals:state.approvals}
+    })});
+    state.archiveId=saved.id;
+    q("hint").textContent="Analysis completed and saved.";
+    await refreshAnalysisHistory();
+    renderContent();
+    schedulePersistence();
+  }catch(e){
+    q("hint").textContent=`Analysis completed, but could not be saved: ${e.message} Keep this page open and use Save analysis to retry.`;
+  }
 }
 async function openSavedAnalysis(id){
   try{
     const record=await api(`/api/analyses/${encodeURIComponent(id)}`);
     const saved=record.payload;
-    state.views[state.selected]={pipeline:state.pipeline,approvals:state.approvals,tab:state.tab};
     state.selected=saved.useCase.id;
+    state.previewUseCase=state.selected;
+    state.phase="interviews";
     state.pipeline=saved.pipeline; state.approvals=saved.approvals||{}; state.tab="req"; state.archiveId=record.id;
-    state.interviews[state.selected]=saved.interviews||[]; state.sources[state.selected]=saved.sources||[];
-    renderUcList(); renderIvList(); renderSrcList(); renderContent();
+    state.interviews={[state.selected]:saved.interviews||[]}; state.sources={[state.selected]:saved.sources||[]};
+    renderFlow(); renderIvList(); renderSrcList(); renderContent();
     q("hint").textContent=`Viewing saved analysis: ${record.title}`;
-  }catch(e){q("hint").textContent=e.message}
+    schedulePersistence();
+  }catch(e){
+    if(state.archiveId===id){
+      state.archiveId=null; state.interviews={}; state.sources={}; state.pipeline=null; state.approvals={};
+      renderIvList(); renderSrcList(); renderContent(); schedulePersistence();
+    }
+    q("hint").textContent=e.message;
+  }
 }
 async function removeSavedAnalysis(id){
   if(!confirm("Delete this saved analysis? This cannot be undone."))return;
-  try{await api(`/api/analyses/${encodeURIComponent(id)}`,{method:"DELETE"});if(state.archiveId===id)state.archiveId=null;await refreshAnalysisHistory()}
+  try{
+    await api(`/api/analyses/${encodeURIComponent(id)}`,{method:"DELETE"});
+    if(state.archiveId===id){
+      state.archiveId=null; state.interviews={}; state.sources={}; state.activeInterview=null; state.pipeline=null; state.approvals={}; state.tab="req";
+      renderIvList(); renderSrcList(); renderContent(); schedulePersistence();
+    }
+    await refreshAnalysisHistory();
+  }
   catch(e){q("hint").textContent=e.message}
 }
 
 function renderUcList(){
-  q("ucList").innerHTML=USE_CASES.map(u=>`<button class="uc-btn ${u.id===state.selected?"active":""}" data-uc="${u.id}"><span class="avatar sm">${initials(u.name)}</span><span>${u.name}<span class="uc-tag">${u.tag}</span></span></button>`).join("");
+  q("ucList").innerHTML=USE_CASES.map(u=>{
+    const interviewCount=(state.interviews[u.id]||[]).length;
+    const sourceCount=(state.sources[u.id]||[]).length;
+    return `<button class="uc-btn ${u.id===state.previewUseCase?"active":""}" data-uc="${u.id}" aria-pressed="${u.id===state.previewUseCase}"><span class="avatar lg">${initials(u.name)}</span><span class="uc-card-copy"><span class="uc-card-title">${escapeHtml(u.name)}</span><span class="uc-tag">${escapeHtml(u.tag)}</span><span class="uc-card-desc">${escapeHtml(u.sample)}</span><span class="uc-card-meta"><span class="meta-chip">${icon("users")} ${interviewCount} stakeholder interview${interviewCount===1?"":"s"}</span><span class="meta-chip">${icon("file")} ${sourceCount} input source${sourceCount===1?"":"s"}</span></span></span></button>`;
+  }).join("");
   document.querySelectorAll(".uc-btn").forEach(b=>b.onclick=()=>{
-    if(state.activeInterview){ q("hint").textContent="Finish or save the current interview first."; return; }
-    state.views[state.selected]={pipeline:state.pipeline,approvals:state.approvals,tab:state.tab};
-    state.selected=b.dataset.uc;
-    const view=state.views[state.selected]||{};
-    state.pipeline=view.pipeline||null; state.approvals=view.approvals||{}; state.tab=view.tab||"req";
-    renderUcList(); renderIvList(); renderSrcList(); q("srcBadge").innerHTML="";
-    renderContent();
+    state.previewUseCase=b.dataset.uc;
+    renderUcList(); renderUseCasePreview(); schedulePersistence();
   });
+}
+function renderUseCasePreview(){
+  q("continueUseCaseBtn").disabled=!state.previewUseCase;
+  q("continueUseCaseBtn").onclick=continueToInterviews;
+}
+function renderFlow(){
+  const choosing=state.phase==="choose";
+  document.querySelector("main").classList.toggle("selecting-use-case",choosing);
+  q("flowProgress").textContent=choosing?"STEP 1 OF 2 · SELECT AN INITIATIVE":"STEP 2 OF 2 · INTERVIEWS & ANALYSIS";
+  q("sharedProjectInfo").innerHTML=commonProjectInfoHtml();
+  q("chooseHeading").hidden=!choosing;
+  q("caseChooser").hidden=!choosing;
+  q("changeUseCase").hidden=choosing;
+  q("sharedProjectInfo").hidden=!choosing;
+  q("interviewOptions").hidden=choosing;
+  if(!choosing) q("selectedUseCaseName").textContent=USE_CASES.find(u=>u.id===state.selected)?.name||"";
+  if(choosing)renderUseCasePreview();
+}
+function continueToInterviews(){
+  if(!state.previewUseCase)return;
+  if(state.previewUseCase!==state.selected){
+    state.interviews={}; state.sources={}; state.activeInterview=null; state.pipeline=null; state.approvals={}; state.tab="req"; state.archiveId=null;
+  }
+  state.selected=state.previewUseCase;
+  state.phase="interviews";
+  renderFlow(); renderIvList(); renderRolePicker(); renderSrcList(); q("srcBadge").innerHTML="";
+  renderContent(); schedulePersistence();
+}
+function returnToUseCases(){
+  if(state.activeInterview){
+    q("hint").textContent="Finish or save the current interview before changing use cases.";
+    q("hint").scrollIntoView({block:"center",behavior:"smooth"});
+    return;
+  }
+  if(state.pipeline&&Object.values(state.pipeline.stageStatus||{}).includes("active")){
+    q("hint").textContent="Wait for the current analysis stage to finish before changing use cases.";
+    q("hint").scrollIntoView({block:"center",behavior:"smooth"});
+    return;
+  }
+  state.previewUseCase=state.selected;
+  state.phase="choose";
+  renderUcList(); renderFlow(); renderContent(); schedulePersistence();
 }
 function renderIvList(){
   const list=state.interviews[state.selected]||[];
@@ -430,7 +633,7 @@ function renderIvList(){
 }
 function renderRolePicker(){
   q("rolePicker").innerHTML=STAKEHOLDER_ROLES.map(r=>`<button class="role-btn ${r.id===state.formRole?"active":""}" data-role="${r.id}"><span class="avatar">${initials(r.label)}</span>${r.label}</button>`).join("");
-  document.querySelectorAll(".role-btn").forEach(b=>b.onclick=()=>{ state.formRole=b.dataset.role; renderRolePicker(); schedulePersistence(); });
+  document.querySelectorAll(".role-btn").forEach(b=>b.onclick=()=>{ state.formRole=b.dataset.role; renderRolePicker(); renderContent(); schedulePersistence(); });
 }
 function renderSrcTypeSelect(){ q("srcType").innerHTML=SOURCE_TYPES.map(s=>`<option>${s}</option>`).join(""); }
 function renderSrcList(){
@@ -450,7 +653,6 @@ function maskSensitive(t){
 
 function renderChatInterview(){
   const ai=state.activeInterview;
-  const uc=USE_CASES.find(u=>u.id===state.selected);
   const msgs=ai.transcript.map(t=>`<div class="msg ${t.speaker==="agent"?"agent":"user"}"><span class="avatar sm">${t.speaker==="agent"?"AI":initials(ai.roleLabel)}</span><div class="msg-bubble">${escapeHtml(t.text)}</div></div>`).join("");
   const thinking = ai.sending? `<div class="msg agent"><span class="avatar sm">AI</span><div class="msg-bubble thinking">Thinking…</div></div>` : "";
   const errorMsg = ai.error? `<div class="msg agent"><span class="avatar sm">AI</span><div class="msg-bubble thinking">${escapeHtml(ai.error)}</div></div>` : "";
@@ -461,7 +663,7 @@ function renderChatInterview(){
     bottom = `<div class="chat-input-row"><textarea id="chatInput" placeholder="Type the stakeholder's answer…" ${ai.sending?"disabled":""}></textarea><button class="send-btn" id="sendBtn" ${ai.sending?"disabled":""}>Send</button></div>
     <div style="padding:0 12px 12px"><button class="small-btn" id="endIvBtn">End interview now</button></div>`;
   }
-  return `<div class="hero-top" style="margin-bottom:16px"><span class="avatar lg">${initials(ai.roleLabel)}</span><div><h2 class="hero-title">${ai.roleLabel}</h2><div class="uc-tag">Live interview · ${uc.name}</div></div></div>
+  return `<div class="hero-top" style="margin-bottom:16px"><span class="avatar lg">${initials(ai.roleLabel)}</span><div><h2 class="hero-title">${escapeHtml(ai.roleLabel)}</h2><div class="uc-tag">Live stakeholder interview</div></div></div>
   <div class="chat-shell"><div class="chat-msgs" id="chatMsgs">${msgs}${thinking}${errorMsg}</div>${bottom}</div>`;
 }
 function wireChatEvents(){
@@ -541,7 +743,7 @@ async function runPipeline(){
     setStage("clarify","done");
     await continuePipelineFromClassify(uc);
   }catch(e){
-    state.pipeline.error=e.message||"Something went wrong."; renderContent();
+    discardIncompleteAnalysis(e);
   }
   q("runBtn").disabled=false;
 }
@@ -575,6 +777,7 @@ async function continuePipelineFromClassify(uc){
   setStage("document","done");
   state.pipeline.complete=true;
   renderContent();
+  await archiveCompletedAnalysis();
 }
 async function submitClarifications(){
   const p=state.pipeline;
@@ -584,7 +787,7 @@ async function submitClarifications(){
   try{
     await continuePipelineFromClassify(USE_CASES.find(u=>u.id===state.selected));
   }catch(e){
-    p.error=e.message||"Something went wrong."; renderContent();
+    discardIncompleteAnalysis(e);
   }
   q("runBtn").disabled=false;
 }
@@ -658,10 +861,9 @@ function renderResultsTabs(p){
   return html;
 }
 function summaryLine(p){
-  const uc=USE_CASES.find(u=>u.id===state.selected);
   const reqCount=(p.requirements||[]).length, compCount=(p.compliance||[]).length, riskCount=(p.risks||[]).length, escCount=(p.requirements||[]).filter(r=>r.needsReview).length;
   const top=[...(p.sdlc.candidates||[])].sort((a,b)=>b.pct-a.pct)[0];
-  return `<p class="summary-line">Based on ${(state.interviews[state.selected]||[]).length} stakeholder interview(s) about <strong>${uc.name}</strong>, the pipeline surfaced <strong>${reqCount} requirements</strong>, <strong>${compCount} compliance mappings</strong> and <strong>${riskCount} risks</strong>${top?`, and recommends <strong>${escapeHtml(top.model)}</strong> (${top.pct}% fit)`:""}${escCount?`. <strong>${escCount}</strong> item(s) were auto-escalated for human review`:""}.</p>
+  return `<p class="summary-line">Based on ${(state.interviews[state.selected]||[]).length} stakeholder interview(s), the pipeline surfaced <strong>${reqCount} requirements</strong>, <strong>${compCount} compliance mappings</strong> and <strong>${riskCount} risks</strong>${top?`, and recommends <strong>${escapeHtml(top.model)}</strong> (${top.pct}% fit)`:""}${escCount?`. <strong>${escCount}</strong> item(s) were auto-escalated for human review`:""}.</p>
   <div class="hero-meta" style="margin-bottom:22px">
     <span class="meta-chip">${icon("doc")} ${reqCount} requirements</span>
     <span class="meta-chip">${icon("shield")} ${compCount} compliance</span>
@@ -696,35 +898,35 @@ function renderKBArea(){
   document.querySelectorAll("[data-kbf]").forEach(b=>b.onclick=()=>{ state.kbFilter=b.dataset.kbf||null; renderKBArea(); });
 }
 
-function heroHtml(){
-  const uc=USE_CASES.find(u=>u.id===state.selected);
-  const ivCount=(state.interviews[state.selected]||[]).length;
-  const srcCount=(state.sources[state.selected]||[]).length;
-  return `<div style="padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line)">
-    <div class="hero-top"><span class="avatar lg">${initials(uc.name)}</span><div><h2 class="hero-title">${uc.name}</h2><div class="uc-tag">${uc.tag}</div></div></div>
-    <p class="hero-desc">${uc.sample}</p>
-    <div class="hero-meta">
-      <span class="meta-chip">${icon("users")} ${ivCount} stakeholder interview${ivCount===1?"":"s"}</span>
-      <span class="meta-chip">${icon("file")} ${srcCount} input source${srcCount===1?"":"s"}</span>
-    </div>
-  </div>`;
-}
-function emptyStateHtml(){
-  return heroHtml()+`
+function commonProjectInfoHtml(){
+  return `<h2 class="workflow-heading">How FinAssistant works</h2>
   <div class="how-it-works">
-    <div class="how-step"><span class="step-num">1</span><div><div class="step-title">Have a real interview</div><div class="step-desc">Pick a role and chat — the Stakeholder Interaction Agent asks adaptive follow-ups, not a fixed form.</div></div></div>
+    <div class="how-step"><span class="step-num">1</span><div><div class="step-title">Have real interviews</div><div class="step-desc">Pick stakeholder roles and chat — the Stakeholder Interaction Agent asks adaptive follow-ups, not a fixed form.</div></div></div>
     <div class="how-step"><span class="step-num">2</span><div><div class="step-title">Watch the pipeline run</div><div class="step-desc">Extraction, clarification, classification, compliance, risk, SDLC and documentation each run as a separate agent call.</div></div></div>
     <div class="how-step"><span class="step-num">3</span><div><div class="step-title">Review &amp; approve</div><div class="step-desc">Citations, confidence scores and auto-escalated items are there for you to check before sign-off.</div></div></div>
   </div>
-  <h3 class="preview-heading">What you'll get</h3>
+  <h3 class="what-you-get-heading">What you'll get</h3>
   <div class="preview-grid">
     <div class="preview-card"><div class="pc-icon">${icon("doc")}</div><strong>Requirements</strong><p>Extracted from the actual conversation, classified and prioritised, each tagged by who raised it.</p></div>
     <div class="preview-card"><div class="pc-icon">${icon("shield")}</div><strong>Compliance mapping</strong><p>Grounded in the local knowledge base via retrieval — every mapping cites the specific policy or regulation used.</p></div>
     <div class="preview-card"><div class="pc-icon">${icon("alert")}</div><strong>Risk register</strong><p>Business, security and compliance risks, weighted by any compliance gaps found.</p></div>
     <div class="preview-card"><div class="pc-icon">${icon("branch")}</div><strong>SDLC recommendation</strong><p>Six candidates scored against retrieved SDLC rules, with pros, cons and a tailored workflow.</p></div>
     <div class="preview-card"><div class="pc-icon">${icon("link")}</div><strong>Traceability &amp; escalation</strong><p>Every requirement traced to its source; low-confidence or unsupported items are flagged for your review.</p></div>
-  </div>
-  <p class="cta-line">Start with an interview on the left, then hit <strong>Run multi-agent analysis</strong>.</p>`;
+  </div>`;
+}
+function emptyStateHtml(){
+  const role=STAKEHOLDER_ROLES.find(item=>item.id===state.formRole)||STAKEHOLDER_ROLES[0];
+  return `<section class="role-briefing" aria-live="polite">
+    <span class="briefing-eyebrow">Stakeholder briefing</span>
+    <h2>${escapeHtml(role.label)}</h2>
+    <p class="briefing-intro">Use this perspective to guide the conversation. The interview adapts to what the stakeholder shares rather than following a fixed questionnaire.</p>
+    <div class="briefing-focus"><h3>Perspective</h3><p>${escapeHtml(role.perspective)}</p></div>
+    <div class="briefing-grid">
+      <section class="briefing-section"><h3>Areas to explore</h3><ul>${role.topics.map(topic=>`<li>${escapeHtml(topic)}</li>`).join("")}</ul></section>
+      <section class="briefing-section"><h3>Useful context to bring</h3><ul>${role.prepare.map(item=>`<li>${escapeHtml(item)}</li>`).join("")}</ul></section>
+    </div>
+    <p class="briefing-note">Share only information you are authorised to discuss. Concrete examples and measurable details help clarify the requirements.</p>
+  </section>`;
 }
 
 function renderContent(){
@@ -732,7 +934,7 @@ function renderContent(){
   if(state.activeInterview){ c.innerHTML=renderChatInterview(); wireChatEvents(); schedulePersistence(); return; }
   if(state.pipeline){
     const p=state.pipeline;
-    let html = heroHtml() + renderStageList(p);
+    let html = renderStageList(p);
     if(p.error) html += `<div class="pipeline-error">${escapeHtml(p.error)}</div>`;
     if(p.clarificationQueue) html += renderClarifyPanel(p.clarificationQueue);
     if(p.complete) html += renderResultsTabs(p);
@@ -746,23 +948,50 @@ function renderContent(){
   schedulePersistence();
 }
 
+function discardIncompleteAnalysis(error){
+  delete state.interviews[state.selected];
+  delete state.sources[state.selected];
+  state.pipeline=null;
+  state.approvals={};
+  state.tab="req";
+  state.archiveId=null;
+  renderIvList();
+  renderSrcList();
+  renderContent();
+  q("hint").textContent=`Analysis did not complete: ${error.message||"Something went wrong."} Draft interviews and input sources were discarded.`;
+}
+
 function resetWorkspace(){
-  state.selected=USE_CASES[0].id;state.interviews={};state.sources={};state.formRole=STAKEHOLDER_ROLES[0].id;
-  state.activeInterview=null;state.pipeline=null;state.approvals={};state.tab="req";state.views={};state.archiveId=null;
+  state.phase="choose";state.selected=USE_CASES[0].id;state.previewUseCase=null;state.interviews={};state.sources={};state.formRole=STAKEHOLDER_ROLES[0].id;
+  state.activeInterview=null;state.pipeline=null;state.approvals={};state.tab="req";state.archiveId=null;
 }
 function lockWorkspace(){
   clearTimeout(persistenceTimer);
   state.user=null;
+  setAccountPopover(false);
   resetWorkspace();
   document.body.classList.remove("authenticated");
+}
+function setAccountPopover(open){
+  q("accountPopover").hidden=!open;
+  q("accountMenuToggle").setAttribute("aria-expanded",String(open));
+  q("accountMenuToggle").setAttribute("aria-label",open?"Close account menu":"Open account menu");
 }
 let authMode="login";
 function renderAuthMode(){
   const registering=authMode==="register";
-  q("authTitle").textContent=registering?"Create your FinReq account":"Sign in to FinReq";
+  q("authTitle").textContent=registering?"Create your FinAssistant account":"Sign in to FinAssistant";
   q("authSubmit").textContent=registering?"Create account":"Sign in";
   q("authPassword").autocomplete=registering?"new-password":"current-password";
   q("authPassword").minLength=registering?10:1;
+  q("authUsernameRow").hidden=!registering;
+  q("authUsername").required=registering;
+  q("authIdentityLabel").textContent=registering?"Email":"Username or email";
+  q("authEmail").type=registering?"email":"text";
+  q("authEmail").name=registering?"email":"identity";
+  q("authEmail").autocomplete=registering?"email":"username";
+  q("authEmail").value="";
+  q("authUsername").value="";
   q("authToggle").textContent=registering?"Already have an account? Sign in":"Create an account";
   q("authError").textContent="";
 }
@@ -770,10 +999,12 @@ async function initializeWorkspace(user){
   state.user=user;
   resetWorkspace();
   document.body.classList.add("authenticated");
+  q("accountMenuToggle").textContent=(user.username||user.email).trim().charAt(0).toUpperCase();
   q("accountEmail").textContent=user.email;
   try{ await restorePersistedState(); }
   catch(e){ q("hint").textContent="Saved data could not be loaded. Existing work may not be available."; }
-  renderUcList(); renderIvList(); renderRolePicker(); renderSrcTypeSelect(); renderSrcList();
+  renderUcList(); renderFlow(); renderIvList(); renderRolePicker(); renderSrcTypeSelect(); renderSrcList();
+  q("backToCasesBtn").onclick=returnToUseCases;
   refreshAnalysisHistory();
   q("startIvBtn").onclick=()=>{
     const role=STAKEHOLDER_ROLES.find(r=>r.id===state.formRole);
@@ -790,17 +1021,33 @@ async function initializeWorkspace(user){
   };
   q("runBtn").onclick=runPipeline;
   renderContent();
+  if(state.archiveId) await openSavedAnalysis(state.archiveId);
   if(state.activeInterview&&state.activeInterview.sending) fetchNextAgentMessage();
 }
 async function initializeApp(){
   renderAuthMode();
+  initializeTheme();
+  q("themeToggle").onclick=()=>setTheme(currentTheme()==="dark"?"light":"dark");
+  q("accountMenuToggle").onclick=()=>setAccountPopover(q("accountPopover").hidden);
+  document.addEventListener("click",event=>{
+    if(!event.target.closest(".account-menu"))setAccountPopover(false);
+  });
+  document.addEventListener("keydown",event=>{
+    if(event.key==="Escape"&&!q("accountPopover").hidden){
+      setAccountPopover(false);
+      q("accountMenuToggle").focus();
+    }
+  });
   q("authToggle").onclick=()=>{authMode=authMode==="login"?"register":"login";renderAuthMode()};
   q("authForm").onsubmit=async(event)=>{
     event.preventDefault();
     q("authError").textContent="";
     q("authSubmit").disabled=true;
     try{
-      const user=await api(`/api/auth/${authMode}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:q("authEmail").value,password:q("authPassword").value})});
+      const credentials=authMode==="register"
+        ? {email:q("authEmail").value,username:q("authUsername").value,password:q("authPassword").value}
+        : {username:q("authEmail").value,password:q("authPassword").value};
+      const user=await api(`/api/auth/${authMode}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(credentials)});
       q("authPassword").value="";
       await initializeWorkspace(user);
     }catch(e){q("authError").textContent=e.message}
@@ -809,7 +1056,7 @@ async function initializeApp(){
   q("signOutBtn").onclick=async()=>{
     try{await persistState();await api("/api/auth/logout",{method:"POST"})}
     catch(e){q("hint").textContent=e.message;return}
-    lockWorkspace();q("authEmail").value="";q("authPassword").value="";authMode="login";renderAuthMode();
+    lockWorkspace();q("authEmail").value="";q("authUsername").value="";q("authPassword").value="";authMode="login";renderAuthMode();
   };
   try{
     const res=await fetch("/api/auth/me");

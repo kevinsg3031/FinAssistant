@@ -1,8 +1,8 @@
-# FinReq — Local Edition (Agentic / RAG)
+# FinAssistant — Local Edition (Agentic / RAG)
 
 Agentic requirement gathering, retrieval-grounded compliance mapping, and SDLC advice for financial software — running entirely on your own machine, calling the Google AI Studio Gemini API with your own key.
 
-This is not a one-shot form: you have a real conversation with a Stakeholder Interaction agent, then watch a chain of specialist agents run one by one — extraction, clarification, classification, compliance (grounded in a local knowledge base), risk, SDLC selection, documentation and validation — pausing for your input if anything's ambiguous, and flagging anything low-confidence for your review at the end.
+Choose a use case first, then select stakeholder roles and conduct interviews. FinAssistant runs a chain of specialist agents — extraction, clarification, classification, compliance (grounded in a local knowledge base), risk, SDLC selection, documentation and validation — pausing for your input if anything's ambiguous, and flagging anything low-confidence for your review at the end.
 
 ## Requirements
 - **Node.js 18 or later**
@@ -22,18 +22,18 @@ Then:
 ```
 node server.js
 ```
-Open **http://localhost:3000** and create an account or sign in. Each account has its own private workspace, interviews and saved analyses. The key lives only in `.env`, read once by the Node process at startup — there's no key field anywhere in the UI, and the browser never sees it.
+Open **http://localhost:3000** and create an account with a username or sign in using your username (email sign-in remains supported). Each account has its own private workspace, interviews and saved analyses. The key lives only in `.env`, read once by the Node process at startup — there's no key field anywhere in the UI, and the browser never sees it.
 
 ## How to use it
-1. Pick a use case in the sidebar.
-2. Pick a stakeholder role and click **Start interview** — a chat opens. Type answers as that stakeholder; the agent asks follow-ups when an answer is vague or incomplete, and tells you when it has enough. Click **Save interview**, then repeat for other roles if you like (or add pasted documents under **Additional input sources** — sensitive fields are masked automatically).
-3. Click **Run multi-agent analysis**. Watch the stage list — each row is a real, separate agent call completing in sequence. If the Clarification agent flags anything, the pipeline pauses and asks you directly; answer and click **Continue analysis**.
+1. Choose a use case and review its preview, then click **Continue with this use case**. Use **Back to use cases** on the next step if you want to change it.
+2. Pick a stakeholder role and click **Start interview** — a chat opens. Type answers as that stakeholder; the agent asks follow-ups when an answer is vague or incomplete, and tells you when it has enough. Click **Save interview**, then repeat for other roles if you like (or add pasted documents under **Additional input sources** — sensitive fields are masked automatically). A normal browser refresh restores the current step and its work; opening the app URL as a fresh navigation starts at use-case selection. Switching use cases discards unanalysed drafts.
+3. Click **Run multi-agent analysis**. Watch the stage list — each row is a real, separate agent call completing in sequence. If the Clarification agent flags anything, the pipeline pauses and asks you directly; answer and click **Continue analysis**. A fully completed analysis, including its inputs, is archived automatically. If a run fails or is abandoned, its draft interviews and sources are discarded.
 4. Review results across seven tabs: Requirements (with confidence scores and auto-escalated items), Compliance (with citation chips linking to the knowledge base), Risk register, Conflicts, SDLC recommendation (six scored candidates, cited, with pros/cons), Traceability, and a browsable Knowledge base.
 
 ## Changing the model
-Defaults to `gemini-2.5-flash`. Override in `.env` or on the command line:
+Defaults to `gemini-3.8-flash`. Override in `.env` or on the command line:
 ```
-GOOGLE_MODEL=gemini-2.5-flash node server.js
+GOOGLE_MODEL=gemini-3.8-flash node server.js
 ```
 Embeddings (used for retrieval) default to `gemini-embedding-001`; override with `GOOGLE_EMBEDDING_MODEL`.
 
@@ -60,7 +60,7 @@ Full detail on each piece is in `docs/`, in particular `docs/agent-architecture.
 - **A real knowledge base.** `data/knowledge-base.json` — versioned, sourced, jurisdiction-tagged — backs two retrieval-grounded agents (Compliance/Security and SDLC Selection), which can only cite what was actually retrieved for that requirement.
 - **Confidence-driven escalation.** Requirements with a low-confidence or missing compliance mapping, or caught in a detected conflict, are automatically marked for human review — on top of, not instead of, manual Approve/Flag.
 - **A pause-and-resume clarification gate.** If the Clarification agent flags an ambiguous requirement, the pipeline genuinely stops and asks you, rather than guessing.
-- **Persistent account-scoped workspace and analysis archive.** Current interviews, masked input sources, analysis results, clarification answers, approvals and per-use-case views are automatically saved to SQLite for the signed-in account. Use **Save analysis** to archive a named, completed analysis with the exact interviews and sources used; reopen or delete saved analyses from the sidebar. Passwords are stored as salted scrypt hashes and sessions use HttpOnly, SameSite cookies. Back up `data/finreq.sqlite` (and its `-wal` file if present) to retain or transfer your work. Set `FINREQ_DB_PATH` to change the database location. Existing workspace/analysis records without an account owner are not shown to newly created accounts.
+- **Account-scoped workspace and completed-analysis archive.** The current use case’s interviews, masked sources and in-progress clarification state are saved to SQLite so a normal browser refresh restores the same step and its work; a fresh URL navigation starts at use-case selection. Unfinished runs can be restarted after a refresh. Switching use cases or a failed run discards unanalysed drafts. Fully completed analyses and their exact inputs are archived automatically; reopen or delete them from the sidebar. Passwords are stored as salted scrypt hashes and authentication uses an HttpOnly, SameSite=Strict browser-session cookie (without a persistent expiry), so sign-in normally ends when the browser session closes. Back up `data/finreq.sqlite` (and its `-wal` file if present) to retain or transfer your work. Set `FINREQ_DB_PATH` to change the database location. Existing workspace/analysis records without an account owner are not shown to newly created accounts.
 
 ## Tests
 ```

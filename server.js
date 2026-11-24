@@ -13,7 +13,7 @@ function loadDotEnv() {
     const k = t.slice(0, i).trim();
     let v = t.slice(i + 1).trim();
     if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-    if (!(k in process.env)) process.env[k] = v;
+    if (process.env[k] === undefined || process.env[k] === "") process.env[k] = v;
   }
 }
 loadDotEnv();
@@ -24,12 +24,11 @@ const { GoogleAIError } = require("./lib/google");
 const storage = require("./lib/storage");
 
 const PORT = process.env.PORT || 3000;
-const MODEL = process.env.GOOGLE_MODEL || "gemini-2.5-flash";
+const MODEL = process.env.GOOGLE_MODEL || "gemini-3.8-flash";
 const API_KEY = process.env.GOOGLE_API_KEY || "";
 const PUBLIC_DIR = path.join(__dirname, "public");
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json" };
 const SESSION_COOKIE = "finreq_session";
-const SESSION_COOKIE_AGE = 7 * 24 * 60 * 60;
 
 // Every /api/pipeline/* route below is stateless: the client holds the running
 // pipeline context (accumulated requirements, compliance, risks, etc.) and resends
@@ -53,7 +52,7 @@ function getAuthenticatedUser(req, res) {
 }
 function setSessionCookie(req, res, token) {
   const secure = req.socket.encrypted ? "; Secure" : "";
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_COOKIE_AGE}${secure}`);
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict${secure}`);
 }
 function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
@@ -169,15 +168,15 @@ const ROUTES = {
 const server = http.createServer((req, res) => {
   if (req.method === "GET" && req.url === "/api/auth/me") {
     const user = storage.getSessionUser(getSessionToken(req));
-    return sendJson(res, 200, { ok: true, data: user ? { id: user.id, email: user.email } : null });
+    return sendJson(res, 200, { ok: true, data: user ? { id: user.id, email: user.email, username: user.username } : null });
   }
   if (req.method === "POST" && (req.url === "/api/auth/register" || req.url === "/api/auth/login")) {
     readBody(req).then((body) => {
       let user;
       if (req.url === "/api/auth/register") {
-        user = storage.createUser(body.email, body.password);
+        user = storage.createUser(body.email, body.username, body.password);
       } else {
-        user = storage.authenticateUser(body.email, body.password);
+        user = storage.authenticateUser(body.username || body.email, body.password);
         if (!user) {
           sendJson(res, 401, { ok: false, error: "Email or password is incorrect.", code: "invalid_credentials" });
           return;
@@ -185,7 +184,7 @@ const server = http.createServer((req, res) => {
       }
       const session = storage.createSession(user.id);
       setSessionCookie(req, res, session.token);
-      sendJson(res, req.url === "/api/auth/register" ? 201 : 200, { ok: true, data: { id: user.id, email: user.email } });
+      sendJson(res, req.url === "/api/auth/register" ? 201 : 200, { ok: true, data: { id: user.id, email: user.email, username: user.username } });
     }).catch((e) => {
       sendJson(res, 400, { ok: false, error: e.message || "Could not authenticate account.", code: "auth" });
     });
@@ -267,7 +266,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`FinReq is running at http://localhost:${PORT}`);
+  console.log(`FinAssistant is running at http://localhost:${PORT}`);
   console.log(`Model: ${MODEL} (override with GOOGLE_MODEL=... )`);
   if (!API_KEY) console.log("⚠  No GOOGLE_API_KEY found. Add it to .env (copy .env.example) or set it as an environment variable, then restart.");
 });

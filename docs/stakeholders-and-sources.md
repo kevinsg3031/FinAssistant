@@ -20,6 +20,8 @@ There's no fixed script per role — the Stakeholder Interaction agent (`POST /a
 
 In the UI: pick a use case, pick a stakeholder role, and just chat — type an answer, the agent asks the next question or a follow-up, and so on until it judges the relevant ground is covered (or you click **End interview now**). You can run as many role conversations as you like per use case; they show as removable chips, and every generated requirement is tagged with the specific role that raised it (the **Raised by** column on the Requirements tab).
 
+Before an interview starts, the workspace shows a contextual briefing for the selected role: its perspective, relevant areas to explore, and useful information to have ready. The briefing changes with the selected role and does not repeat the use-case preview or first-page workflow.
+
 ## Input sources
 
 Beyond structured interviews, the **Additional input sources** panel accepts free-text from any of the ten source types named in the brief: stakeholder conversations, interview transcripts, questionnaires, emails/meeting notes, existing requirement documents, banking policies/procedures, regulatory/compliance documents, API/database specifications, legacy-system documentation, and incident reports/audit findings. Pick the type, paste the content, and click **Classify & add**.

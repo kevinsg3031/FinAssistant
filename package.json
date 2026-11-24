@@ -2,7 +2,7 @@
   "name": "finreq-local",
   "version": "1.0.0",
   "private": true,
-  "description": "Agentic, RAG-grounded requirement gathering, compliance mapping & SDLC advisor for financial software — local edition.",
+  "description": "FinAssistant: agentic, RAG-grounded requirement gathering, compliance mapping & SDLC advisor for financial software — local edition.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
