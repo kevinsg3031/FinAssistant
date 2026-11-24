@@ -29,7 +29,6 @@ Open **http://localhost:3000** and create an account with a username or sign in 
 
 ```
 server.js                       Coordinator: static file server + one stateless route per agent
-lib/google.js                   Thin fetch wrapper for Gemini generateContent + embeddings
 lib/kb.js                       Knowledge-base loading, embedding cache, retrieval (RAG)
 lib/agents.js                   One function per agent: prompts + the call itself
 data/knowledge-base.json        Versioned, sourced knowledge base (see docs/knowledge-base.md)
@@ -42,14 +41,6 @@ docs/                           agent-architecture · rag-workflow · knowledge-
 
 Full detail on each piece is in `docs/`, in particular `docs/agent-architecture.md` (how the 13-agent design from the brief maps onto real endpoints) and `docs/rag-workflow.md` (the retrieval-grounded generation loop).
 
-## What changed from the earlier single-call prototype
-- **Conversational, not a form.** The old fixed 3-question-per-role form is gone; `POST /api/interview/turn` runs a real multi-turn conversation.
-- **Seven separate agent calls, not one.** Each pipeline stage is its own endpoint, called in sequence by the client, so the UI shows genuine incremental progress rather than a single spinner.
-- **A real knowledge base.** `data/knowledge-base.json` — versioned, sourced, jurisdiction-tagged — backs two retrieval-grounded agents (Compliance/Security and SDLC Selection), which can only cite what was actually retrieved for that requirement.
-- **Confidence-driven escalation.** Requirements with a low-confidence or missing compliance mapping, or caught in a detected conflict, are automatically marked for human review — on top of, not instead of, manual Approve/Flag.
-- **A pause-and-resume clarification gate.** If the Clarification agent flags an ambiguous requirement, the pipeline genuinely stops and asks you, rather than guessing.
-- **Account-scoped workspace and completed-analysis archive.** The current use case’s interviews, masked sources and in-progress clarification state are saved to SQLite so a normal browser refresh restores the same step and its work; a fresh URL navigation starts at use-case selection. Unfinished runs can be restarted after a refresh. Switching use cases or a failed run discards unanalysed drafts. Fully completed analyses and their exact inputs are archived automatically; reopen or delete them from the sidebar. Passwords are stored as salted scrypt hashes and authentication uses an HttpOnly, SameSite=Strict browser-session cookie (without a persistent expiry), so sign-in normally ends when the browser session closes. Back up `data/finreq.sqlite` (and its `-wal` file if present) to retain or transfer your work. Set `FINREQ_DB_PATH` to change the database location. Existing workspace/analysis records without an account owner are not shown to newly created accounts.
-
 ## Tests
 ```
 node tests/unit.js     # retrieval math + knowledge-base integrity
@@ -58,11 +49,3 @@ node tests/auth.js    # authentication, sessions and API access isolation
 node tests/e2e.js      # drives the real UI + server end to end with Google AI mocked (needs: npm i -D playwright)
 ```
 The end-to-end test runs the full chain — adaptive interview, masking, the clarification gate, all seven agents, citations, escalation, the KB browser — against a deterministic fake Google AI API (`tests/mock-google.js`), and asserts from the mock's call log that retrieval really fed the Clarification, Compliance, SDLC and Documentation agents with knowledge-base evidence. The mock is a test harness only; it is never used when you run the app normally.
-
-## Honest limitations
-- **Verified with a mocked Google AI API, not a live one.** The test suite proves the wiring, gates, retrieval plumbing and UI; it can't prove how well a live model follows the prompts.
-- **Cost and latency are both higher than the old single-call design.** An interview is N calls (roughly one per exchange), and a full pipeline run is 6 more, plus embeddings for retrieval. Model pricing and quotas depend on the Google AI Studio project — see `docs/agent-architecture.md`.
-- **Local, self-managed accounts.** Application data is stored in a SQLite database on this machine, not in a remotely backed-up service. Anyone who can reach the app can create an account; deploy behind appropriate network controls if that is not intended. Protect and back up `data/finreq.sqlite`; the app does not provide account recovery or a durable audit service.
-- **The knowledge base is an illustrative seed (37 items), not real regulatory text.** See `docs/knowledge-base.md` for what a production knowledge base would need on top of this.
-- **Sensitive-data masking is a lightweight regex demo**, not production DLP (see `docs/stakeholders-and-sources.md`).
-- **No role-based access control or account recovery.** Accounts separate data, but this local tool does not provide administrator roles, email verification, password reset, or production identity management.
