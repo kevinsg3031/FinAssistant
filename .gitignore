@@ -1,0 +1,5 @@
+.env
+node_modules/
+data/.kb-embeddings-cache.json
+data/app-state.json
+data/finreq.sqlite*

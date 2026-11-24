@@ -1,0 +1,416 @@
+[
+  {
+    "id": "TERM-001",
+    "category": "terminology",
+    "title": "Straight-through processing (STP)",
+    "content": "STP means a transaction is processed end-to-end by systems without manual re-keying or intervention at any stage, from initiation through settlement. It is the usual target state for payment and transfer flows and is often expressed as an \"STP rate\" KPI.",
+    "source": "FinReq internal glossary",
+    "jurisdiction": "All",
+    "effective_date": "2024-01-01",
+    "version": "1.0",
+    "applicability": ["payment", "banking", "reporting"]
+  },
+  {
+    "id": "TERM-002",
+    "category": "terminology",
+    "title": "Know Your Customer (KYC)",
+    "content": "KYC is the process of verifying a customer's identity and assessing their risk profile before or during onboarding, typically covering identity documents, address verification, and screening against sanctions/PEP lists. It is distinct from ongoing due diligence, which continues after onboarding.",
+    "source": "FinReq internal glossary",
+    "jurisdiction": "All",
+    "effective_date": "2024-01-01",
+    "version": "1.0",
+    "applicability": ["onboarding", "loan", "payment"]
+  },
+  {
+    "id": "TERM-003",
+    "category": "terminology",
+    "title": "Underwriting",
+    "content": "Underwriting is the process of evaluating the risk of extending credit or insurance to an applicant, resulting in an approval, decline, or conditional offer with specific terms. In lending, it typically weighs credit history, income, existing obligations, and collateral.",
+    "source": "FinReq internal glossary",
+    "jurisdiction": "All",
+    "effective_date": "2024-01-01",
+    "version": "1.0",
+    "applicability": ["loan"]
+  },
+  {
+    "id": "TERM-004",
+    "category": "terminology",
+    "title": "Chargeback",
+    "content": "A chargeback is a forced reversal of a card transaction initiated by the cardholder's bank, usually following a dispute, fraud claim, or processing error. Chargebacks carry fees and, above certain thresholds, can affect a merchant's or acquirer's standing with card networks.",
+    "source": "FinReq internal glossary",
+    "jurisdiction": "All",
+    "effective_date": "2024-01-01",
+    "version": "1.0",
+    "applicability": ["payment", "fraud"]
+  },
+  {
+    "id": "TERM-005",
+    "category": "terminology",
+    "title": "Straight risk-based pricing",
+    "content": "Risk-based pricing sets an interest rate, premium, or fee based on the assessed risk of the individual applicant rather than a single flat rate for all customers, commonly used in lending and insurance underwriting.",
+    "source": "FinReq internal glossary",
+    "jurisdiction": "All",
+    "effective_date": "2024-01-01",
+    "version": "1.0",
+    "applicability": ["loan", "insurance"]
+  },
+
+  {
+    "id": "POL-001",
+    "category": "policy",
+    "title": "Data retention policy — customer records",
+    "content": "Customer identity, transaction, and communication records must be retained for a minimum of 7 years after account closure, and securely deleted or anonymised thereafter unless a longer statutory hold applies. Retention schedules must be documented per data category.",
+    "source": "Internal Data Governance Policy v4",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-01-15",
+    "version": "4.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "POL-002",
+    "category": "policy",
+    "title": "Third-party vendor risk policy",
+    "content": "Any vendor or subprocessor with access to customer data or core banking systems must complete a security assessment before onboarding and be re-assessed annually. High-risk vendors require a named internal risk owner and a documented exit plan.",
+    "source": "Internal Vendor Risk Policy v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-03-01",
+    "version": "2.1",
+    "applicability": ["all"]
+  },
+  {
+    "id": "POL-003",
+    "category": "policy",
+    "title": "Change management and release policy",
+    "content": "Production changes to systems processing financial transactions require a documented change request, peer review, and a rollback plan. Emergency changes may bypass standard approval but must be retroactively reviewed within 24 hours.",
+    "source": "Internal Change Management Policy v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-11-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "POL-004",
+    "category": "policy",
+    "title": "Segregation of duties policy",
+    "content": "No single individual may both initiate and approve a financial transaction above the low-value threshold defined per product line. Maker-checker controls must be enforced in-system, not left to manual process alone.",
+    "source": "Internal Financial Controls Policy v5",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-02-01",
+    "version": "5.0",
+    "applicability": ["payment", "loan", "banking"]
+  },
+  {
+    "id": "POL-005",
+    "category": "policy",
+    "title": "Customer complaints handling policy",
+    "content": "Complaints related to financial harm (incorrect charges, failed transactions, denied claims) must be acknowledged within 2 business days and resolved or escalated within 10 business days, with a documented outcome and, where applicable, a remediation offer.",
+    "source": "Internal Customer Experience Policy v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-09-01",
+    "version": "2.0",
+    "applicability": ["insurance", "banking", "payment"]
+  },
+
+  {
+    "id": "REG-001",
+    "category": "regulation",
+    "title": "Customer due diligence / AML-KYC obligations",
+    "content": "Financial institutions must verify customer identity using reliable, independent documentation before establishing a business relationship, screen customers against sanctions and politically-exposed-person lists, and apply enhanced due diligence for higher-risk customers or transactions.",
+    "source": "AML/CFT Master Direction (illustrative summary)",
+    "jurisdiction": "National",
+    "effective_date": "2024-04-01",
+    "version": "3.2",
+    "applicability": ["onboarding", "loan", "payment"]
+  },
+  {
+    "id": "REG-002",
+    "category": "regulation",
+    "title": "Sanctions screening before settlement",
+    "content": "Cross-border and high-value domestic payment instructions must be screened against applicable sanctions lists (e.g. OFAC, UN consolidated list) before funds are released, with any positive or partial match held for manual review rather than auto-released.",
+    "source": "Sanctions Compliance Directive (illustrative summary)",
+    "jurisdiction": "Cross-border",
+    "effective_date": "2024-06-01",
+    "version": "2.0",
+    "applicability": ["payment"]
+  },
+  {
+    "id": "REG-003",
+    "category": "regulation",
+    "title": "Payment Card Industry Data Security Standard (PCI DSS)",
+    "content": "Systems that store, process, or transmit cardholder data must encrypt it at rest and in transit, restrict access on a need-to-know basis, log and monitor all access, and undergo regular vulnerability scanning and penetration testing.",
+    "source": "PCI DSS v4.0 (illustrative summary)",
+    "jurisdiction": "Global",
+    "effective_date": "2024-03-31",
+    "version": "4.0",
+    "applicability": ["payment", "fraud", "banking"]
+  },
+  {
+    "id": "REG-004",
+    "category": "regulation",
+    "title": "Fair claims-handling and disclosure requirements",
+    "content": "Insurers must disclose claim-decision criteria and timelines to policyholders in plain language, provide written reasons for any claim denial or reduction, and offer a defined internal appeal process before a claimant needs to seek external redress.",
+    "source": "Insurance Conduct Regulation (illustrative summary)",
+    "jurisdiction": "National",
+    "effective_date": "2024-01-01",
+    "version": "1.4",
+    "applicability": ["insurance"]
+  },
+  {
+    "id": "REG-005",
+    "category": "regulation",
+    "title": "Periodic regulatory reporting obligations",
+    "content": "Regulated entities must submit large-value transaction reports, suspicious activity reports, and periodic prudential returns to the relevant regulator on a defined schedule, in a machine-readable format, with a documented data lineage from source system to submitted figure.",
+    "source": "Regulatory Reporting Framework (illustrative summary)",
+    "jurisdiction": "National",
+    "effective_date": "2024-04-01",
+    "version": "2.3",
+    "applicability": ["reporting", "payment", "loan"]
+  },
+  {
+    "id": "REG-006",
+    "category": "regulation",
+    "title": "Data protection and cross-border transfer restrictions",
+    "content": "Personal financial data may only be transferred outside the jurisdiction of collection where an adequacy finding, standard contractual clause, or explicit informed consent applies, and data subjects must be able to request access, correction, or deletion of their data subject to statutory retention limits.",
+    "source": "Data Protection Regulation (illustrative summary)",
+    "jurisdiction": "National / Cross-border",
+    "effective_date": "2025-01-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "REG-007",
+    "category": "regulation",
+    "title": "Credit assessment and responsible lending obligations",
+    "content": "Lenders must assess an applicant's ability to repay based on verified income and existing obligations before approving credit, and must not approve lending that appears unaffordable based on the information available at the time of assessment.",
+    "source": "Responsible Lending Directive (illustrative summary)",
+    "jurisdiction": "National",
+    "effective_date": "2024-07-01",
+    "version": "1.2",
+    "applicability": ["loan"]
+  },
+
+  {
+    "id": "SEC-001",
+    "category": "security-standard",
+    "title": "Encryption in transit and at rest",
+    "content": "All financial and personal data must be encrypted in transit using TLS 1.2 or higher and at rest using an approved algorithm (e.g. AES-256), with encryption keys managed through a hardware security module or equivalent managed key service, never embedded in application code.",
+    "source": "Internal Security Standard SEC-ENC v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-01-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "SEC-002",
+    "category": "security-standard",
+    "title": "Authentication and step-up authentication",
+    "content": "Standard sessions require multi-factor authentication at login. Transactions above a defined risk or value threshold require step-up authentication (biometric, hardware token, or one-time passcode) immediately before execution, independent of the session-level authentication already performed.",
+    "source": "Internal Security Standard SEC-AUTH v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-10-01",
+    "version": "2.1",
+    "applicability": ["banking", "payment", "loan"]
+  },
+  {
+    "id": "SEC-003",
+    "category": "security-standard",
+    "title": "Least-privilege access control",
+    "content": "System and data access must be granted on a least-privilege, role-based basis, reviewed quarterly, and automatically revoked on role change or termination. Access to production customer data by non-production roles (e.g. analysts) must be masked or tokenised by default.",
+    "source": "Internal Security Standard SEC-ACC v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-11-01",
+    "version": "2.0",
+    "applicability": ["analytics", "all"]
+  },
+  {
+    "id": "SEC-004",
+    "category": "security-standard",
+    "title": "Audit logging and tamper-evidence",
+    "content": "All decisions made by an automated system that affect a customer's money, credit, or claim outcome must be logged with the input data, rule or model version used, and the resulting decision, in a tamper-evident store retained per the data retention policy.",
+    "source": "Internal Security Standard SEC-LOG v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-09-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "SEC-005",
+    "category": "security-standard",
+    "title": "Threat modelling for new payment flows",
+    "content": "New or materially changed payment flows require a documented threat model covering message tampering, replay, and credential-compromise scenarios before the design is approved, with mitigations mapped to each identified threat.",
+    "source": "Internal Security Standard SEC-THREAT v1",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-02-01",
+    "version": "1.0",
+    "applicability": ["payment", "banking", "fraud"]
+  },
+
+  {
+    "id": "REQ-001",
+    "category": "requirement-guideline",
+    "title": "Requirement statement structure",
+    "content": "Each requirement should be written as a single, testable statement in the form \"The system shall <capability> for <actor> under <condition>\", avoiding compound requirements joined by \"and\"/\"or\" that hide multiple obligations in one line.",
+    "source": "Internal Requirements Engineering Guideline v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-06-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "REQ-002",
+    "category": "requirement-guideline",
+    "title": "Non-functional requirement coverage checklist",
+    "content": "Every initiative must consider, and explicitly accept or reject, non-functional requirements across: performance, availability, security, privacy, auditability, accessibility, and localisation, rather than leaving them implicit.",
+    "source": "Internal Requirements Engineering Guideline v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-06-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "REQ-003",
+    "category": "requirement-guideline",
+    "title": "Definition of ambiguous or incomplete requirement",
+    "content": "A requirement is considered incomplete if it lacks a measurable acceptance criterion, and ambiguous if it contains subjective terms (\"fast\", \"secure\", \"user-friendly\") without a defined threshold. Both must be clarified with the source stakeholder before sign-off.",
+    "source": "Internal Requirements Engineering Guideline v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-06-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "REQ-004",
+    "category": "requirement-guideline",
+    "title": "Traceability requirement",
+    "content": "Every requirement must be traceable to the stakeholder interview, document, or regulation that originated it, and forward-traceable to the design element, test case, and sign-off record that satisfies it.",
+    "source": "Internal Requirements Engineering Guideline v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-06-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+
+  {
+    "id": "SDLC-001",
+    "category": "sdlc-rule",
+    "title": "Waterfall suitability rule",
+    "content": "Waterfall is suitable when requirements are stable, regulatory scope is well understood in advance, and extensive upfront sign-off is required, but is a poor fit where requirements are expected to change materially during delivery.",
+    "source": "Internal SDLC Selection Guideline v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-05-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "SDLC-002",
+    "category": "sdlc-rule",
+    "title": "V-Model suitability rule",
+    "content": "V-Model is favoured when strict verification and validation traceability is required for audit or regulatory purposes, since every build phase maps to a corresponding test phase, at the cost of slower adaptation to change.",
+    "source": "Internal SDLC Selection Guideline v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-05-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "SDLC-003",
+    "category": "sdlc-rule",
+    "title": "Agile-DevSecOps hybrid suitability rule",
+    "content": "An Agile-DevSecOps hybrid is recommended where regulatory requirements evolve frequently and continuous secure deployment is needed, embedding security and compliance gates directly into the CI/CD pipeline rather than as a separate late-stage review.",
+    "source": "Internal SDLC Selection Guideline v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-05-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "SDLC-004",
+    "category": "sdlc-rule",
+    "title": "Spiral suitability rule",
+    "content": "Spiral is suitable for high-uncertainty, high-technical-risk initiatives where each iteration explicitly re-evaluates risk before committing further investment, but adds process overhead that is hard to justify for well-understood, low-risk work.",
+    "source": "Internal SDLC Selection Guideline v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-05-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "SDLC-005",
+    "category": "sdlc-rule",
+    "title": "Minimum gates for regulated financial software",
+    "content": "Regardless of the chosen SDLC model, any initiative touching customer funds, credit decisions, or regulatory reporting must include an explicit security sign-off gate and a compliance sign-off gate before production release.",
+    "source": "Internal SDLC Selection Guideline v3",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-05-01",
+    "version": "3.0",
+    "applicability": ["all"]
+  },
+
+  {
+    "id": "TPL-001",
+    "category": "template",
+    "title": "SRS section outline",
+    "content": "The standard Software Requirements Specification outline is: 1) Introduction & scope, 2) Stakeholders & roles, 3) Functional requirements, 4) Non-functional requirements, 5) Compliance & regulatory mapping, 6) Assumptions & constraints, 7) Traceability matrix.",
+    "source": "Internal Documentation Templates v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-02-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "TPL-002",
+    "category": "template",
+    "title": "User story format",
+    "content": "User stories follow the format \"As a <role>, I want <capability>, so that <benefit>\", accompanied by explicit Given/When/Then acceptance criteria rather than free-text notes.",
+    "source": "Internal Documentation Templates v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-02-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+  {
+    "id": "TPL-003",
+    "category": "template",
+    "title": "Use case template",
+    "content": "Use cases document: actor, precondition, main success scenario (numbered steps), alternate flows, exception flows, and postcondition, and should reference the specific requirement IDs they satisfy.",
+    "source": "Internal Documentation Templates v2",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2024-02-01",
+    "version": "2.0",
+    "applicability": ["all"]
+  },
+
+  {
+    "id": "PROJ-001",
+    "category": "approved-project",
+    "title": "Mobile banking transfer limits — prior approval",
+    "content": "A prior approved project set default per-transaction transfer limits at a moderate threshold for unverified beneficiaries, with a step-up authentication and a 24-hour cooling-off period required to raise the limit — approved by security and compliance as the baseline pattern for similar transfer features.",
+    "source": "Approved Project Record PRJ-2025-014",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-05-01",
+    "version": "1.0",
+    "applicability": ["banking", "payment"]
+  },
+  {
+    "id": "PROJ-002",
+    "category": "approved-project",
+    "title": "Digital KYC onboarding — prior approval",
+    "content": "A prior approved onboarding project combined video-based identity verification with automated document-liveness checks and same-session sanctions screening, achieving sign-off on the basis that any screening match — partial or full — is routed to manual review rather than auto-declined.",
+    "source": "Approved Project Record PRJ-2025-021",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-06-01",
+    "version": "1.0",
+    "applicability": ["onboarding"]
+  },
+  {
+    "id": "PROJ-003",
+    "category": "approved-project",
+    "title": "Claims-triage automation — prior approval",
+    "content": "A prior approved claims-triage project used automated severity scoring to route claims but required a human adjuster to countersign any automated denial or reduction, in line with fair claims-handling disclosure obligations.",
+    "source": "Approved Project Record PRJ-2025-009",
+    "jurisdiction": "Group-wide",
+    "effective_date": "2025-03-01",
+    "version": "1.0",
+    "applicability": ["insurance"]
+  }
+]
