@@ -267,6 +267,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`FinAssistant is running at http://localhost:${PORT}`);
-  console.log(`Model: ${MODEL} (override with GOOGLE_MODEL=... )`);
   if (!API_KEY) console.log("⚠  No GOOGLE_API_KEY found. Add it to .env (copy .env.example) or set it as an environment variable, then restart.");
 });
