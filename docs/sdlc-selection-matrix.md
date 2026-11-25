@@ -1,18 +1,9 @@
-# SDLC selection heuristics
+# SDLC selection
 
-Base heuristics from the problem statement, used to steer the SDLC-selection portion of the orchestrator prompt:
+The SDLC-Selection Agent compares six approaches named in the project brief: Agile, DevSecOps, Spiral, V-Model, Waterfall, and hybrid. Its input includes the project description, classified requirements, risks, change characteristics, regulatory criticality, and retrieved `sdlc-rule` evidence.
 
-| Project condition | Suitable SDLC approach |
-|---|---|
-| Stable requirements and extensive approvals | Waterfall |
-| Strict verification and validation | V-Model |
-| High uncertainty or technical risk | Spiral |
-| Frequently changing requirements | Agile |
-| Continuous secure deployment | DevSecOps |
-| High regulation with evolving requirements | Agile–V-Model or DevSecOps hybrid |
+The model returns a relative 0–100 suitability score for each candidate, a justification, pros/cons, citations to retrieved rules, and a recommended project-specific workflow. The values are comparative model judgments, not probabilities or a deterministic scoring formula. The Coordinator does not silently select a winner if the evidence is weak; owners should review the recommendation and the alternatives.
 
-## How the prototype uses this
+The workflow is expected to describe phases, activities, roles, deliverables, validation gates, security controls, and compliance checkpoints. The SRS incorporates the selected model, rationale, and workflow, and the PDF includes the alternatives and traceability context.
 
-The SDLC-Selection agent retrieves the most relevant of these rules from the knowledge base for the specific requirement/risk profile (see `rag-workflow.md`), then scores **6 candidates** against them — each with an independent 0–100 suitability score, a citation to the specific rule(s) that justified it, a one-sentence justification, and exactly 2 pros and 2 cons. The top-scoring candidate is marked "Recommended" and its workflow (5–6 phases, each with activities, a responsible role, and an approval gate) is generated to match it. It then asks for a project-specific workflow: 5–6 phases, each with activities, a responsible role, and an approval gate, so the recommendation isn't just a label but a usable plan.
-
-In a production system, this heuristic table would be the deterministic half of a **hybrid** selection engine (per problem-statement step 14): rule-based scoring on requirement stability, regulatory criticality, security risk, complexity, and change frequency, combined with an LLM-generated explanation — with the final choice still requiring sign-off from the project manager, architect, security team, and compliance officer.
+The seed knowledge base contains illustrative selection heuristics, not universal lifecycle rules. A production organization should replace them with approved delivery policy and calibrate selection criteria against its actual risk, regulatory, and change-management practices.

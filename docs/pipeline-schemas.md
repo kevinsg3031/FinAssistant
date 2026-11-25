@@ -1,44 +1,93 @@
-# Pipeline request/response schemas
+# Pipeline request and response schemas
 
-Every stage is a separate `POST` to `/api/pipeline/<stage>`, called by the client in sequence (see `agent-architecture.md` for why). Each returns `{"ok":true,"data": ...}` on success or `{"ok":false,"error":"...","code":"auth"|"rate_limited"|"other"}` on failure.
+All agent APIs require an authenticated browser session. The agent routes use JSON; the analysis route streams Server-Sent Events so the interface can display actual stage progress.
 
-### `/api/pipeline/extract`
-Request: `{useCase, interviews: [{roleLabel, transcript:[{speaker,text}]}], sources: [{type, masked}]}`
-Response: `{requirements: [{tempId, statement, sourceRole}]}`
+## Project chat — `POST /api/project/turn`
 
-### `/api/pipeline/clarify-check`
-Request: `{requirements}` (the array above)
-Response: `{items: [{tempId, status: "clear"|"needs_clarification", question}]}`
-If any item needs clarification, the client shows the clarify panel and merges your answers into the matching requirement's `statement` client-side (no extra call) before continuing.
+Request:
 
-### `/api/pipeline/classify`
-Request: `{useCase, requirements}`
-Response: `{requirements: [{tempId, id, statement, sourceRole, categories:[...], priority}], conflicts: [{a, b, description}]}`
+```json
+{
+  "project": { "title": "Payments", "description": "Build a transfer service", "jurisdictions": [] },
+  "conversation": [{ "speaker": "user", "text": "Build a transfer service" }],
+  "userMessage": "Build a transfer service"
+}
+```
 
-### `/api/pipeline/compliance`
-Request: `{useCase, requirements}` (using the classified list, with real `id`s)
-Response: `{compliance: [{requirementId, regulation, jurisdiction, citedEvidenceIds, confidence, gap, evidence}], derivedSecurityRequirements: [{statement, citedEvidenceIds, basedOnRequirementId}]}`
-`evidence` is the server-resolved, full metadata for each cited knowledge-base id (see `knowledge-base.md`).
+Response data:
 
-### `/api/pipeline/risk`
-Request: `{useCase, requirements, compliance}`
-Response: `{risks: [{id, description, category, severity, relatedRequirementIds}]}`
+```json
+{
+  "message": "Which countries or regions will the service operate in?",
+  "topicsCovered": ["business objective"],
+  "jurisdictionsMentioned": []
+}
+```
 
-### `/api/pipeline/sdlc`
-Request: `{useCase, requirements, risks}`
-Response: `{candidates: [{model, pct, justification, citedEvidenceIds, evidence, pros:[...], cons:[...]}], workflow: [{phase, activities:[...], role, gate}]}`
+The browser adds the message to the conversation and sends the full context on the next turn. `speaker` is `user` or `assistant`.
 
-### `/api/pipeline/document`
-Request: `{requirements, compliance, conflicts}`
-Response: `{traceability: [{requirementId, source, artifact}], validation: [{requirementId, needsReview, reason}]}`
-The client merges `validation` and each requirement's matching `compliance.confidence` back onto the requirement objects to produce the final `needsReview`/`confidence` fields shown in the Requirements tab.
+## Coordinated analysis — `POST /api/pipeline/analyze`
 
-### `/api/interview/turn`
-Request: `{useCase, roleLabel, transcript}`
-Response: `{message, done, topicsCovered}`
+Request:
 
-### `/api/kb`  (GET, no body)
-Response: the full knowledge base (see `knowledge-base.md`), no API key required.
+```json
+{
+  "project": { "title": "Payments", "description": "...", "jurisdictions": ["Canada"] },
+  "conversation": [{ "speaker": "user", "text": "..." }, { "speaker": "assistant", "text": "..." }],
+  "sources": [{ "id": "source-1", "title": "Existing policy", "text": "Masked pasted text" }]
+}
+```
 
-## Extending a schema
-Add a field to the relevant agent's prompt and JSON shape in `lib/agents.js`, then add a matching column/element in the corresponding render branch of `renderResultsTabs()` in `public/index.html`.
+The response is `text/event-stream`. Each event is a JSON object prefixed by `data: `:
+
+```json
+{ "type": "stage", "stage": { "key": "compliance", "label": "Compliance mapping (RAG)", "status": "active", "agent": "Compliance Agent" } }
+{ "type": "stage", "stage": { "key": "compliance", "label": "Compliance mapping (RAG)", "status": "done", "agent": "Compliance Agent" } }
+```
+
+Clarification event:
+
+```json
+{
+  "type": "result",
+  "data": {
+    "needsClarification": true,
+    "questions": [{ "id": "JURISDICTION", "requirementRef": "project", "question": "...", "reason": "..." }],
+    "extractedRequirements": [],
+    "auditTrail": [],
+    "complete": false
+  }
+}
+```
+
+The client adds the answers to the conversation and repeats the analysis route. Completed results use:
+
+```text
+{
+  project,
+  requirements: [{ id, tempId, statement, source, sourceExcerpt, type, dimensions, priority, confidence }],
+  conflicts: [{ kind, requirementIds, description, evidence }],
+  compliance: [{ requirementId, status, jurisdiction, citedEvidenceIds, evidence, confidence, gap }],
+  security: [{ requirementId, kind, statement, threatOrConcern, control, citedEvidenceIds, evidence, confidence, needsReview }],
+  risks: [{ id, description, category, likelihood, impact, severity, mitigation, residualRisk, relatedRequirementIds, confidence }],
+  sdlc: { recommendedModel, recommendationRationale, candidates, workflow },
+  srs: { purpose, scope, functionalRequirements, nonFunctionalRequirements, userStories, useCases, interfaces, securityPrivacy, compliance, operations, generationNotes? },
+  traceability: [{ requirementId, source, evidenceIds, srsSection }],
+  validation: { issues, citationViolations, ruleChecksPassed },
+  approvalTasks, evidence, evidenceByAgent, auditTrail, complete, createdAt
+}
+```
+
+Before validation, the coordinator normalizes Documentation Agent output: malformed optional SRS sections become safe empty values, missing requirement references and traceability rows are restored from the validated requirement set, and malformed nested story/use-case fields are made render-safe. Any repairs are surfaced in `srs.generationNotes`. Retrieved documentation evidence is retained for citation validation.
+
+Errors are emitted as `{ "type": "error", "error": "...", "code": "..." }`; malformed or invalid requests made before the stream starts use the standard JSON error shape.
+
+## Persistence and review
+
+- `PUT /api/state` stores the signed-in user's in-progress workspace (schema version 3).
+- `GET /api/analyses` lists only that account's saved analyses. `POST /api/analyses` archives a completed project, results, original brief, supporting sources, discovery conversation, and structured clarification question/answer pairs.
+- `GET /api/analyses/:id` and `DELETE /api/analyses/:id` are account-scoped.
+- `POST /api/analyses/:id/approval` accepts `{ "requirementId": "FR-001", "status": "approved|changes_requested", "note": "" }`. Use `__analysis__` for the overall owner decision. The server records reviewer identity and timestamp in the saved analysis audit trail.
+- An overall `changes_requested` decision opens the saved input/clarification view. The owner can add a change request and rerun; a completed revision is archived as a new analysis, preserving the prior version and its review trail.
+- `GET /api/analyses/:id/srs.pdf` returns an authenticated PDF download.
+- `GET /api/kb` returns the browsable local knowledge base.

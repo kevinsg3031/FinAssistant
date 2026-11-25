@@ -1,16 +1,51 @@
 # Retrieval-grounded generation (RAG)
 
-This implements the workflow from the brief step-for-step, for the two agents that need to ground their output in approved sources: **Compliance & Security** (`/api/pipeline/compliance`) and **SDLC Selection** (`/api/pipeline/sdlc`).
+RAG is implemented in the running analysis, not simulated in the interface. The retrieval path is:
 
-1. **Classify the query.** The query is the candidate requirement's own statement (for compliance/security) or a summary of the requirement/risk profile (for SDLC selection) — no separate classification call is needed since the requirement text itself is the query.
-2. **Retrieve relevant evidence.** `lib/kb.js` embeds the query with Google's `gemini-embedding-001`, and ranks it by cosine similarity against the knowledge base — pre-filtered to the categories that agent is allowed to use (`regulation`, `security-standard`, `policy` for compliance; `sdlc-rule` for SDLC selection) and to items whose `applicability` includes the current use case or `"all"`. The top few matches are returned with their id, source, jurisdiction, version and content.
-3. **Provide the evidence to the LLM.** The retrieved items are assembled into the prompt as an explicit evidence block, one per requirement (compliance) or one shared block (SDLC selection).
-4. **Generate the requirement or analysis.** The agent is instructed that it may only cite what's in the evidence block — if nothing relevant was retrieved, it must say so (`regulation: null`, low confidence, a `gap` note) rather than inventing a plausible-sounding regulation.
-5. **Attach citations and confidence scores.** Every compliance mapping and SDLC score carries `citedEvidenceIds`; the server resolves these back to full knowledge-base records (title, source, jurisdiction, version) before sending the response to the UI, where they render as the small `[ID]` chips you can hover over.
-6. **Escalate low-confidence or unsupported outputs.** The Validation agent (`/api/pipeline/document`) marks a requirement `needsReview` if its compliance confidence is below 0.6, if no mapping was found at all, or if it appears in the conflict list — these show as an **Escalated** badge in the Requirements tab, on top of (not instead of) the manual Approve/Flag controls.
+```text
+specialist agent
+  -> lib/agents/shared.js: retrieve(...)
+  -> lib/kb.js: retrieve(...)
+  -> category + jurisdiction filters
+  -> cached document/query embeddings
+  -> cosine ranking
+  -> evidence block in the specialist prompt
+  -> cited IDs and evidence returned with the analysis
+```
 
-## Why this reduces hallucination risk (and where it doesn't)
+## Retrieval implementation
 
-Retrieval happens with real embeddings against real (if illustrative) knowledge-base content — the model cannot cite a knowledge-base ID that wasn't actually retrieved, because the prompt only contains the ids that were. This is a genuine reduction in the *citation* half of the hallucination problem: any `[REG-002]` chip you see really was the evidence handed to the model for that requirement.
+1. `lib/kb.js` loads `data/knowledge-base.json`. The knowledge base records include an ID, category, title/content, source, jurisdiction, effective date, version, and applicability metadata.
+2. `ensureEmbeddings()` computes document vectors in batches and stores them in `data/.kb-embeddings-cache.json`, keyed by each item's title/content/version fingerprint and embedding model. Cached vectors are reused while those values are unchanged.
+3. Each RAG agent builds a query from its task and project context. `retrieve()` filters the candidate pool by allowed categories and jurisdiction, embeds the query, ranks candidates using cosine similarity, and returns the top K records with metadata and scores. The project pipeline does not use a predefined use-case filter.
+4. `evidenceText()` formats the retrieved IDs, titles, jurisdiction, source, version, effective date, and content into an explicit evidence block. The agent prompt requires that citations use only those IDs and that missing or uncertain support be reported as a gap.
+5. Each output carries `citedEvidenceIds`. The Coordinator resolves them to the full records actually retrieved by that specific agent. The UI displays citation chips with source metadata.
 
-What it does **not** solve: the model can still misjudge how well a retrieved item actually supports its conclusion, and the knowledge base itself is a small, illustrative seed (see `knowledge-base.md`) rather than authoritative regulatory text — so "grounded" here means grounded in *this demo's* knowledge base, not grounded in law. Treat every citation as "here's the internal document this came from," and verify it against the real source before relying on it.
+## Retrieval scopes by agent
+
+| Agent | Allowed categories | Maximum retrieved records |
+|---|---|---:|
+| Compliance | `regulation`, `policy` | 8 |
+| Security and Privacy | `security-standard`, `policy` | 8 |
+| SDLC Selection | `sdlc-rule` | 8 |
+| Documentation | `template`, `requirement-guideline` | 5 |
+
+Jurisdiction filtering is deliberately conservative. `All`, `Global`, and `Group-wide` records are eligible across jurisdictions; other records must exactly match a supplied jurisdiction or be an exact member of a slash/comma-separated label. The system does not guess aliases (for example, it does not assume that `National` means a particular country). If jurisdiction is missing, the Coordinator blocks compliance analysis until the owner answers.
+
+## Deterministic compliance checks
+
+`lib/complianceRules.js` runs after the Compliance Agent and before Risk Analysis:
+
+- Invalid or missing statuses become `unverified`.
+- A mapping with no retrieved evidence is `unverified`.
+- A cited ID not present in the Compliance Agent's own retrieval result is removed and the mapping is `unverified`.
+- Evidence with a mismatched jurisdiction makes the mapping `unverified`.
+- Evidence whose source identifies it as illustrative, demo, or seed cannot establish legal applicability; the mapping is `unverified`.
+
+The Validation Agent separately checks compliance, security, SDLC, and documentation citations against the corresponding agent's own retrieval set. A citation from another agent's context is not treated as valid evidence.
+
+## What this mitigates—and what it does not
+
+RAG makes the evidence path inspectable and limits unsupported citation IDs. The deterministic checks stop the model from turning an illustrative seed citation into a `supported` legal mapping. Confidence values remain model estimates, not calibrated probabilities; cosine similarity measures textual closeness, not legal relevance.
+
+The included knowledge base is a 37-record illustrative seed, not authoritative regulation. The implementation uses top-K ranking without a universal relevance threshold, and an LLM can still misinterpret a retrieved passage, omit an applicable rule, or produce a weak explanation. Human review against maintained primary sources is required before operational or legal use.

@@ -77,6 +77,35 @@ try {
   check("incomplete analyses are rejected", incompleteRejected);
   check("saved analysis can be deleted", storage.deleteAnalysis(alice.id, "analysis-one") && storage.loadAnalysis(alice.id, "analysis-one") === null);
   check("missing analysis cannot be deleted", !storage.deleteAnalysis(alice.id, "missing"));
+
+  const projectWorkspace = {
+    version: 3,
+    phase: "intake",
+    project: { title: "Payments", description: "Customer test@example.com account 1234567890123456", jurisdictions: ["Canada"] },
+    conversation: [{ speaker: "user", text: "Contact test@example.com" }],
+    sources: [{ title: "Policy", text: "Account 1234567890123456" }],
+    pipeline: { complete: false },
+  };
+  storage.saveState(alice.id, projectWorkspace);
+  const restoredProject = storage.loadState(alice.id);
+  check("project chat, sources, and jurisdiction survive account-scoped persistence", restoredProject.version === 3 && restoredProject.project.jurisdictions[0] === "Canada" && restoredProject.conversation.length === 1 && restoredProject.sources.length === 1);
+  check("sensitive patterns are masked before project workspace persistence", !JSON.stringify(restoredProject).includes("test@example.com") && !JSON.stringify(restoredProject).includes("1234567890123456"));
+
+  const projectAnalysis = storage.saveAnalysis(alice.id, {
+    id: "project-analysis",
+    title: "Payments SRS",
+    project: { title: "Payments", description: "Build a transfer system", jurisdictions: ["Canada"] },
+    state: { conversation: [], clarifications: [{ question: "Which region?", answer: "Canada" }], sources: [], pipeline: { complete: true, requirements: [{ id: "FR-001" }], approvalTasks: [{ requirementId: "FR-001", required: true, status: "pending" }], auditTrail: [] } },
+  });
+  check("project-based completed analyses can be archived", projectAnalysis.use_case_id === "project");
+  check("saved project analysis retains clarification questions and answers", storage.loadAnalysis(alice.id, "project-analysis").payload.clarifications[0].answer === "Canada");
+  let finalApprovalBlocked = false;
+  try { storage.recordApproval(alice.id, "project-analysis", "__analysis__", "approved", "", { userId: alice.id }); } catch { finalApprovalBlocked = true; }
+  check("required item reviews must be resolved before final owner approval", finalApprovalBlocked);
+  const approved = storage.recordApproval(alice.id, "project-analysis", "FR-001", "approved", "Reviewed", { userId: alice.id, username: alice.username });
+  check("owner approval persists status, reviewer identity, and audit trail", approved.pipeline.approvalTasks[0].status === "approved" && approved.pipeline.auditTrail.at(-1).reviewer.userId === alice.id);
+  check("approval cannot be read or changed by another account", storage.recordApproval(bob.id, "project-analysis", "__analysis__", "approved", "", { userId: bob.id }) === null);
+  check("sensitive patterns are masked in completed archives", !JSON.stringify(storage.loadAnalysis(alice.id, "project-analysis").payload).includes("test@example.com"));
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }

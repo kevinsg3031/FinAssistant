@@ -58,8 +58,10 @@ async function waitForServer(baseUrl) {
     const responseJson = async (response) => ({ status: response.status, body: await response.json() });
     const anonymousState = await request("/api/state");
     const anonymousAnalyses = await request("/api/analyses");
-    const anonymousAgent = await request("/api/interview/turn", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-    check("anonymous requests cannot access workspace, analyses or agent APIs", anonymousState.status === 401 && anonymousAnalyses.status === 401 && anonymousAgent.status === 401);
+    const anonymousAgent = await request("/api/project/turn", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const anonymousPipeline = await request("/api/pipeline/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const anonymousPdf = await request("/api/analyses/alice-analysis/srs.pdf");
+    check("anonymous requests cannot access workspace, analyses or agent APIs", anonymousState.status === 401 && anonymousAnalyses.status === 401 && anonymousAgent.status === 401 && anonymousPipeline.status === 401 && anonymousPdf.status === 401);
 
     const aliceRegistration = await request("/api/auth/register", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -87,6 +89,32 @@ async function waitForServer(baseUrl) {
       }),
     }, aliceCookie);
     const savedResult = await responseJson(savedAnalysis);
+    const pdfResponse = await request("/api/analyses/alice-analysis/srs.pdf", {}, aliceCookie);
+    const pdfBytes = Buffer.from(await pdfResponse.arrayBuffer());
+    check("saved analysis exports a real PDF SRS", pdfResponse.status === 200 && pdfResponse.headers.get("content-type") === "application/pdf" && pdfBytes.subarray(0, 5).toString() === "%PDF-");
+    const projectArchive = await request("/api/analyses", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "alice-project-analysis",
+        title: "Alice project analysis",
+        project: { title: "Payment project", description: "Build payments", jurisdictions: ["Canada"] },
+        state: { pipeline: { complete: true, approvalTasks: [{ requirementId: "FR-001", required: true, status: "pending" }], auditTrail: [] } },
+      }),
+    }, aliceCookie);
+    const blockedApproval = await request("/api/analyses/alice-project-analysis/approval", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requirementId: "__analysis__", status: "approved", note: "Reviewed" }),
+    }, aliceCookie);
+    const itemApproval = await request("/api/analyses/alice-project-analysis/approval", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requirementId: "FR-001", status: "approved", note: "Reviewed" }),
+    }, aliceCookie);
+    const approvalResponse = await request("/api/analyses/alice-project-analysis/approval", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requirementId: "__analysis__", status: "approved", note: "Reviewed" }),
+    }, aliceCookie);
+    const approvalResult = await approvalResponse.json();
+    check("owner must resolve required item reviews before final approval", projectArchive.status === 201 && blockedApproval.status === 400 && itemApproval.status === 200 && approvalResponse.status === 200 && approvalResult.data.pipeline.auditTrail.at(-1).reviewer.username === "Alice");
 
     const bobRegistration = await request("/api/auth/register", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -98,7 +126,7 @@ async function waitForServer(baseUrl) {
     const crossUserRead = await request("/api/analyses/alice-analysis", {}, bobCookie);
     const crossUserDelete = await request("/api/analyses/alice-analysis", { method: "DELETE" }, bobCookie);
     check("new account starts empty and cannot read/delete another user's analysis", Object.keys(bobState.body.data).length === 0 && bobAnalyses.body.data.length === 0 && crossUserRead.status === 404 && crossUserDelete.status === 404);
-    check("saved analysis belongs to its creator", savedResult.status === 201 && (await (await request("/api/analyses", {}, aliceCookie)).json()).data.length === 1);
+    check("saved analysis belongs to its creator", savedResult.status === 201 && (await (await request("/api/analyses", {}, aliceCookie)).json()).data.length === 2);
 
     await request("/api/auth/logout", { method: "POST" }, aliceCookie);
     check("logout revokes its session", (await request("/api/state", {}, aliceCookie)).status === 401);

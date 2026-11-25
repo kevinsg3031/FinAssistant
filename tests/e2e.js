@@ -1,245 +1,242 @@
-// tests/e2e.js — drives the real UI against the real server (with Google AI mocked by tests/mock-google.js).
-// Requires Playwright to be installed (`npm i -D playwright`); it is not needed to run the app itself.
-// Usage: node tests/e2e.js [screenshotDir]
-
+// Browser-level test for the description-first flow and all coordinated analysis stages.
 const { spawn } = require("child_process");
 const fs = require("fs");
+const net = require("net");
 const os = require("os");
 const path = require("path");
 const { chromium } = require("playwright");
 
-const PORT = 3111;
 const ROOT = path.join(__dirname, "..");
-const SHOTS = process.argv[2] || null;
-const LOG = path.join(os.tmpdir(), "finreq-mock-log.jsonl");
-const CACHE = path.join(os.tmpdir(), "finreq-mock-cache.json");
-const DB = path.join(os.tmpdir(), "finreq-mock-state.sqlite");
-for (const f of [LOG, CACHE, DB, `${DB}-wal`, `${DB}-shm`]) if (fs.existsSync(f)) fs.unlinkSync(f);
-
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "finreq-e2e-"));
+const logPath = path.join(tempDir, "mock-log.jsonl");
+const dbPath = path.join(tempDir, "state.sqlite");
+let server;
 let failed = 0;
-const check = (name, cond, extra = "") => {
-  console.log(`${cond ? "PASS" : "FAIL"}  ${name}${cond ? "" : "  " + extra}`);
-  if (!cond) failed++;
+const check = (name, condition, detail = "") => {
+  console.log(`${condition ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
+  if (!condition) failed += 1;
 };
-const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + ".png"), fullPage: true }); };
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const listener = net.createServer();
+    listener.once("error", reject);
+    listener.listen(0, "127.0.0.1", () => {
+      const { port } = listener.address();
+      listener.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+async function waitForServer(url) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      if ((await fetch(`${url}/api/auth/me`)).ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("The test server did not become ready.");
+}
 
 (async () => {
-  const server = spawn("node", ["-r", "./tests/mock-google.js", "server.js"], {
-    cwd: ROOT,
-    env: { ...process.env, PORT, GOOGLE_API_KEY: "mock-google-key", MOCK_LOG: LOG, KB_CACHE_PATH: CACHE, FINREQ_DB_PATH: DB, FINREQ_DATA_PATH: path.join(os.tmpdir(), "finreq-e2e-no-legacy.json") },
-    stdio: "ignore",
-  });
-  await new Promise((r) => setTimeout(r, 1200));
-  const browser = await chromium.launch();
+  let browser;
+  let page;
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    const jsErrors = [];
-    page.on("pageerror", (e) => jsErrors.push(e.message));
-    await page.goto(`http://localhost:${PORT}/`);
-
-    const anonymousStatuses = await page.evaluate(async () => {
-      const state = await fetch("/api/state");
-      const analyses = await fetch("/api/analyses");
-      return [state.status, analyses.status];
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}`;
+    server = spawn(process.execPath, ["-r", "./tests/mock-google.js", "server.js"], {
+      cwd: ROOT,
+      env: {
+        ...process.env,
+        PORT: String(port),
+        GOOGLE_API_KEY: "mock-test-key",
+        FINREQ_DB_PATH: dbPath,
+        KB_CACHE_PATH: path.join(tempDir, "kb-cache.json"),
+        MOCK_LOG: logPath,
+      },
+      stdio: "ignore",
     });
-    check("workspace and analyses APIs reject anonymous access", anonymousStatuses[0] === 401 && anonymousStatuses[1] === 401);
-    await page.click("#authToggle");
-    await page.fill("#authUsername", "Alice");
-    await page.fill("#authEmail", "alice@example.test");
-    await page.fill("#authPassword", "a-long-test-password");
-    await page.click("#authSubmit");
-    await page.waitForFunction(() => document.body.classList.contains("authenticated"));
-    check("new account is represented by its capitalized username initial", (await page.locator("#accountMenuToggle").textContent()) === "A" && await page.locator("#accountPopover").isHidden());
-    check("theme toggle is immediately to the left of the profile button", await page.locator("#themeToggle").evaluate(el=>el.getBoundingClientRect().right<document.querySelector("#accountMenuToggle").getBoundingClientRect().left));
-    await page.click("#themeToggle");
-    check("theme toggle switches to dark mode and persists the preference", await page.locator("html").getAttribute("data-theme")==="dark" && await page.evaluate(()=>localStorage.getItem("finassistant-theme"))==="dark" && (await page.locator("#themeToggle").getAttribute("aria-label"))==="Switch to light mode");
-    await page.click("#themeToggle");
-    check("theme toggle switches back to light mode", await page.locator("html").getAttribute("data-theme")==="light" && await page.evaluate(()=>localStorage.getItem("finassistant-theme"))==="light");
-    await page.click("#accountMenuToggle");
-    check("account menu reveals the user's email and logout option", await page.locator("#accountPopover").isVisible() && (await page.locator("#accountEmail").textContent()) === "alice@example.test" && (await page.locator("#signOutBtn").textContent()) === "Log out");
-    await page.keyboard.press("Escape");
-    check("Escape closes account menu and returns focus to its icon", await page.locator("#accountPopover").isHidden() && await page.locator("#accountMenuToggle").evaluate(el=>el===document.activeElement));
-    check("new workspace shows workflow and shared deliverables before step one and use-case previews", (await page.locator(".uc-btn").count()) === 8 && await page.locator(".uc-card-desc").count() === 8 && await page.locator("#sharedProjectInfo").isVisible() && await page.locator("#sharedProjectInfo .preview-card").count() === 5 && await page.locator("#sharedProjectInfo").evaluate(el=>el.getBoundingClientRect().bottom<document.querySelector("#flowProgress").getBoundingClientRect().top) && await page.locator(".workflow-heading").innerText().then(text=>text==="How FinAssistant works") && await page.locator(".how-it-works").evaluate(el=>el.getBoundingClientRect().bottom<document.querySelector(".what-you-get-heading").getBoundingClientRect().top) && await page.locator(".how-step .step-title").first().innerText().then(text=>text==="Have real interviews") && await page.locator("#interviewOptions").isHidden() && await page.locator("#changeUseCase").isHidden());
-    await page.evaluate(async () => fetch("/api/state", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ version: 2, selected: "payment", formRole: "audit" }),
-    }));
-    await page.click("#accountMenuToggle");
-    await page.click("#signOutBtn");
-    await page.waitForFunction(() => !document.body.classList.contains("authenticated"));
-    await page.click("#authToggle");
-    await page.fill("#authUsername", "Bob");
-    await page.fill("#authEmail", "bob@example.test");
-    await page.fill("#authPassword", "another-long-test-password");
-    await page.click("#authSubmit");
-    await page.waitForFunction(() => document.body.classList.contains("authenticated"));
-    const bobData = await page.evaluate(async () => {
-      const [state, analyses] = await Promise.all([fetch("/api/state"), fetch("/api/analyses")]);
-      return [await state.json(), await analyses.json()];
+    await waitForServer(baseUrl);
+    const staticResponse = await fetch(`${baseUrl}/app.js`);
+    check("browser JavaScript is never served from a stale cache", staticResponse.headers.get("cache-control") === "no-store");
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext();
+    page = await context.newPage();
+    await page.goto(baseUrl);
+    await page.locator("#authToggle").click();
+    await page.locator("#authEmail").fill("demo@example.test");
+    await page.locator("#authUsername").fill("Demo");
+    await page.locator("#authPassword").fill("a-strong-test-password");
+    await page.locator("#authForm").evaluate((form) => form.requestSubmit());
+    await page.locator(".sidebar-nav [data-page='Chat']").waitFor();
+    await page.locator(".sidebar-nav [data-page='Chat']").click();
+    const sidebarText = await page.locator(".app-sidebar").innerText();
+    check("sidebar contains project and saved analyses without source option or footer", sidebarText.includes("PROJECT") && sidebarText.includes("SAVED ANALYSES") && !sidebarText.includes("Supporting text") && !sidebarText.includes("Private workspace"));
+    check("chat page uses concise project-focused labels", (await page.locator("#content").innerText()).includes("Project Chat") && await page.locator("#startProjectBtn").innerText() === "Start chat");
+    check("empty chat does not show a welcome bubble below the brief", await page.locator("#projectChat .chat-message").count() === 0);
+    await page.locator("#startProjectBtn").waitFor();
+
+    await page.evaluate(async () => {
+      await fetch("/api/state", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          version: 3,
+          phase: "analysis",
+          project: { title: "Unfinished old project", description: "This should be discarded on reopen.", jurisdictions: [] },
+          conversation: [{ speaker: "user", text: "Old unfinished conversation" }],
+          sources: [{ id: "old-source", title: "Old source", text: "Old unfinished source" }],
+          pipeline: { stageStatus: { extract: "active" } },
+        }),
+      });
     });
-    check("second account cannot see the first account's workspace or analyses", bobData[0].data.privateMarker === undefined && bobData[1].data.length === 0);
-    await page.click("#accountMenuToggle");
-    await page.click("#signOutBtn");
-    await page.waitForFunction(() => !document.body.classList.contains("authenticated"));
-    await page.fill("#authEmail", "Alice");
-    await page.fill("#authPassword", "a-long-test-password");
-    await page.click("#authSubmit");
-    await page.waitForFunction(() => document.body.classList.contains("authenticated"));
-    const aliceMarker = await page.evaluate(async () => (await (await fetch("/api/state")).json()).data.formRole);
-    check("signing back in restores the original account's workspace", aliceMarker === "audit");
-    await page.evaluate(async () => fetch("/api/state", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ version: 2 }),
-    }));
-
-    // --- Use-case preview and adaptive interview ----------------------------
-    await page.click('button.uc-btn:has-text("Payment Processing")');
-    check("use-case cards show their summaries and selection does not advance", await page.locator("#caseChooser").isVisible() && await page.locator("#interviewOptions").isHidden() && (await page.locator('button.uc-btn[data-uc="payment"]').textContent()).includes("cross-border payments") && await page.locator("#continueUseCaseBtn").isEnabled());
-    await page.click("#continueUseCaseBtn");
-    check("selected use case and change action are grouped outside the interview panel", await page.locator("#caseChooser").isHidden() && await page.locator("#sharedProjectInfo").isHidden() && await page.locator("#changeUseCase").isVisible() && await page.locator("#changeUseCase").evaluate(el=>!el.closest(".panel") && el.nextElementSibling.matches(".panel.side") && el.contains(document.querySelector("#selectedUseCaseName")) && el.contains(document.querySelector("#backToCasesBtn"))) && await page.locator("#interviewOptions").isVisible() && await page.locator("#selectedUseCaseName").innerText().then(text=>text==="Payment Processing") && (await page.locator(".role-btn").count()) === 9);
-    check("default stakeholder briefing is role-specific and avoids repeating the use-case preview", await page.locator("#content .role-briefing h2").innerText().then(text=>text==="Customers & end users") && (await page.locator("#content .briefing-section").count())===2 && await page.locator("#content .role-briefing").innerText().then(text=>!text.includes("Payment Processing")&&!text.includes("cross-border payments")));
-    await page.click('.role-btn:has-text("Business analysts")');
-    check("changing stakeholder updates the briefing topics and preparation guidance", await page.locator("#content .role-briefing h2").innerText().then(text=>text==="Business analysts") && await page.locator("#content .briefing-section").first().innerText().then(text=>text.includes("Business objective and success measures")) && await page.locator("#content .briefing-section").last().innerText().then(text=>text.includes("Current process notes or a workflow sketch")));
-    await page.click("#backToCasesBtn");
-    check("back returns to the previews with the current choice selected", await page.locator("#caseChooser").isVisible() && (await page.locator('button.uc-btn[data-uc="payment"]').getAttribute("aria-pressed")) === "true");
-    await page.click('button.uc-btn:has-text("Digital & Mobile Banking")');
-    await page.click("#continueUseCaseBtn");
-    const secondStepText = await page.locator("main").innerText();
-    check("second step groups selected case and change action outside the panel", (await page.locator("#flowProgress").textContent()) === "STEP 2 OF 2 · INTERVIEWS & ANALYSIS" && secondStepText.includes("Digital & Mobile Banking") && await page.locator("#selectedUseCaseName").innerText().then(text=>text==="Digital & Mobile Banking") && await page.locator("#changeUseCase").evaluate(el=>!el.closest(".panel") && el.nextElementSibling.matches(".panel.side") && el.contains(document.querySelector("#backToCasesBtn"))));
-    await page.click("#backToCasesBtn");
-    await page.click('button.uc-btn:has-text("Payment Processing")');
-    await page.click("#continueUseCaseBtn");
-    await page.click('.role-btn:has-text("Business analysts")');
-    await page.click("#startIvBtn");
-    await page.waitForSelector(".msg.agent .msg-bubble:not(.thinking)");
-    check("interview opens with an agent-generated question", (await page.locator(".msg.agent").first().textContent()).includes("business objective"));
-
-    const answer = async (text) => {
-      const before = await page.locator(".msg.agent").count();
-      await page.fill("#chatInput", text);
-      await page.click("#sendBtn");
-      await page.waitForFunction((n) => document.querySelectorAll(".msg.agent").length > n && !document.querySelector(".msg-bubble.thinking"), before);
-    };
-    await answer("Make payments quick and reliable.");
-    check("agent follows up on a vague answer", (await page.locator(".msg.agent").last().textContent()).includes("put a number on that"));
-    await answer("Under two seconds for domestic transfers.");
-    await answer("Biometric step-up above a risk threshold.");
-    check("agent signals completion and offers Save", (await page.locator("#saveIvBtn").count()) === 1);
-    await shot(page, "01-interview-complete");
-    await page.click("#saveIvBtn");
-    check("saved interview appears as a chip", (await page.locator("#ivList .chip").count()) === 1);
     await page.reload();
-    await page.waitForFunction(() => document.body.classList.contains("authenticated"));
-    check("normal refresh restores the current interview page and its draft", await page.locator("#interviewOptions").isVisible() && (await page.locator("#ivList .chip").count()) === 1 && (await page.locator(".role-btn.active").textContent()).includes("Business analysts"));
-    await page.click("#backToCasesBtn");
-    await page.click('button.uc-btn:has-text("Digital & Mobile Banking")');
-    await page.click("#continueUseCaseBtn");
-    await page.evaluate(() => persistState());
-    const switchedWorkspace = await page.evaluate(async () => (await (await fetch("/api/state")).json()).data);
-    check("switching use cases discards the previous unanalysed interviews and sources", switchedWorkspace.selected === "banking" && (!switchedWorkspace.interviews || switchedWorkspace.interviews.length === 0) && (!switchedWorkspace.sources || switchedWorkspace.sources.length === 0));
-    await page.click("#backToCasesBtn");
-    await page.click('button.uc-btn:has-text("Payment Processing")');
-    await page.click("#continueUseCaseBtn");
-    await page.click('.role-btn:has-text("Business analysts")');
-    await page.click("#startIvBtn");
-    await page.waitForSelector(".msg.agent .msg-bubble:not(.thinking)");
-    for (const text of ["Make payments quick and reliable.", "Under two seconds for domestic transfers.", "Biometric step-up above a risk threshold."]) {
-      await page.fill("#chatInput", text);
-      await page.click("#sendBtn");
-      if (text.startsWith("Biometric")) await page.waitForSelector("#saveIvBtn");
-      else await page.waitForFunction(() => !document.querySelector(".msg-bubble.thinking") && !document.querySelector("#sendBtn")?.disabled);
+    await page.locator(".sidebar-nav [data-page='Chat']").waitFor();
+    await page.locator(".sidebar-nav [data-page='Chat']").click();
+    await page.locator("#startProjectBtn").waitFor();
+    const workspaceAfterFreshOpen = await page.evaluate(async () => (await (await fetch("/api/state")).json()).data);
+    check("reopening the URL discards unfinished project state", await page.locator("#projectTitle").inputValue() === "" && await page.locator("#projectDescription").inputValue() === "" && !(await page.locator("#content").innerText()).includes("Old unfinished conversation") && workspaceAfterFreshOpen.conversation.length === 0 && !workspaceAfterFreshOpen.pipeline);
+
+    await page.locator("#projectTitle").fill("Canada payments");
+    await page.locator("#projectDescription").fill("Build a digital banking system for customers in Canada to initiate domestic payment transfers. The system should be fast and record every payment decision for audit. Contact operations@example.test for questions.");
+    await page.locator(".chat-sources summary").click();
+    await page.locator("#sourceTitle").fill("Internal policy excerpt from operations@example.test");
+    await page.locator("#sourceText").fill("Payment decisions require review. Contact operations@example.test; sample account 1234567890123456.");
+    await page.locator("#addSourceBtn").click();
+    check("pasted source is masked before being shown or stored", (await page.locator("#sourceList").innerText()).includes("[EMAIL REDACTED]") && !(await page.locator("#sourceList").innerText()).includes("1234567890123456"));
+
+    await page.locator("#startProjectBtn").click();
+    check("project brief is masked before remaining in the workspace form", !(await page.locator("#projectDescription").inputValue()).includes("operations@example.test"));
+    await page.locator(".chat-message.assistant").first().waitFor();
+    const discoveryPrompt = await page.locator(".chat-message.assistant").first().innerText();
+    check("starting from a project brief does not trigger an unnecessary questionnaire", discoveryPrompt.includes("start the analysis") && discoveryPrompt.includes("TBD") && !/identity verification|legacy banking|payment rail/i.test(discoveryPrompt));
+    await page.locator("#chatInput").fill("Payment completion should take no more than two seconds. The system will operate in Canada.");
+    await page.locator("#chatForm").evaluate((form) => form.requestSubmit());
+    await page.locator(".chat-message.assistant").nth(1).waitFor();
+    await page.locator("#runAnalysis").waitFor();
+    await page.locator("#runAnalysis").click();
+    await page.locator(".clarify-panel").waitFor({ timeout: 30000 });
+    check("agentic analysis pauses for a material clarification", await page.locator(".clarify-panel").isVisible());
+    check("clarification blockers are asked together as one batch", await page.locator("[data-clarification]").count() === 2);
+    await page.locator("[data-clarification='0']").fill("No more than two seconds for payment completion.");
+    await page.locator("[data-clarification='1']").fill("Keep partner selection open; TBD.");
+    await page.locator("#submitClarifications").click();
+    await page.locator(".overview-dashboard").waitFor({ timeout: 60000 });
+    await page.locator("#saveAnalysisCopy").waitFor({ timeout: 30000 });
+    await page.locator(".sidebar-nav [data-page='Requirements']").click();
+    check("pipeline completes and produces classified functional/non-functional requirements", (await page.locator("#content").innerText()).includes("FR-001") && (await page.locator("#content").innerText()).includes("NFR-001"));
+    await page.locator(".sidebar-nav [data-page='SRS Documentation']").click();
+    check("documentation navigation opens the structured SRS", (await page.locator("#content").innerText()).includes("Software Requirements Specification"));
+    await page.locator(".sidebar-nav [data-page='SDLC & Workflow']").click();
+    check("SDLC navigation renders the recommended model and workflow", (await page.locator("#content").innerText()).includes("Recommended:"));
+    await page.locator(".sidebar-nav [data-page='Quality, Compliance & Risk']").click();
+    await page.locator(".quality-subnav [data-tab='Compliance']").click();
+    check("compliance mappings show retrieved knowledge-base citations", await page.locator("#content .evidence-chip").count() > 0);
+    await page.locator(".sidebar-nav [data-page='Knowledge Base']").click();
+    check("knowledge base omits the intro tagline and capitalizes category labels", await page.locator("#content .step-desc").count() === 0 && await page.locator("[data-kb='security-standard']").innerText().then((text) => text.startsWith("Security Standard")));
+
+    const archive = await page.evaluate(async () => (await (await fetch("/api/analyses")).json()).data[0]);
+    const pdf = await page.evaluate(async (id) => {
+      const response = await fetch(`/api/analyses/${encodeURIComponent(id)}/srs.pdf`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      return { status: response.status, type: response.headers.get("content-type"), signature: String.fromCharCode(...bytes.slice(0, 5)) };
+    }, archive.id);
+    check("completed analysis downloads as a PDF document", pdf.status === 200 && pdf.type === "application/pdf" && pdf.signature === "%PDF-", JSON.stringify(pdf));
+
+    await page.locator(".sidebar-nav [data-page='Requirements']").click();
+    for (const id of ["FR-001", "NFR-001", "NFR-002"]) {
+      const review = page.locator(`[data-review='${id}|approved']`);
+      if (await review.count()) {
+        const approvalResponse = page.waitForResponse((response) =>
+          response.url().includes("/approval") && response.request().postDataJSON()?.requirementId === id);
+        await review.first().click();
+        await approvalResponse;
+      }
     }
-    await page.click("#saveIvBtn");
-    check("interviews for the active use case remain available after intentional case switching", (await page.locator("#ivList .chip").count()) === 1);
+    await page.locator(".sidebar-nav [data-page='Overview']").click();
+    const changesResponse = page.waitForResponse((response) =>
+      response.url().includes("/approval") && response.request().postDataJSON()?.status === "changes_requested");
+    await page.locator('[data-owner-approval="changes_requested"]').click();
+    await changesResponse;
+    check("requesting changes returns to clarification inputs", (await page.locator("#content").innerText()).includes("Clarification requested by the project owner") && await page.locator("#revisionRequest").count() === 1);
+    await page.locator("#revisionRequest").fill("Clarify that the partner API is responsible for executing the transfer; the platform only tracks and reconciles status.");
+    await page.locator("#reviseAnalysis").click();
+    await page.locator(".overview-dashboard").waitFor({ timeout: 60000 });
+    const revisedArchive = await page.evaluate(async () => (await (await fetch("/api/analyses")).json()).data[0]);
+    check("requested changes rerun and save as a separate completed analysis", revisedArchive.id !== archive.id);
 
-    // --- Input source masking ----------------------------------------------
-    await page.click("summary");
-    await page.selectOption("#srcType", "Incident report or audit finding");
-    await page.fill("#srcText", "Card 4485 1234 5678 9012 duplicated. Contact jane.doe@examplebank.com, PIN: 4821.");
-    await page.click("#addSrcBtn");
-    check("sensitive fields masked before use", (await page.locator("#srcBadge .badge.warn").count()) === 1);
-    const preview = await page.locator(".src-item .prev").textContent();
-    check("raw card number and PIN are gone from stored source", !preview.includes("4485 1234") && !preview.includes("4821") && preview.includes("9012"));
-
-    // --- Pipeline with clarification gate ----------------------------------
-    await page.click("#runBtn");
-    await page.waitForSelector(".clarify-panel");
-    check("pipeline pauses at the clarification gate", (await page.locator(".stage-item.waiting").count()) === 1);
-    check("clarification question is specific", (await page.locator(".clarify-q").textContent()).includes("latency"));
-    await shot(page, "02-clarification-gate");
-    await page.fill("[data-clq='0']", "p95 under 2 seconds");
-    await page.click("#submitClarifyBtn");
-    await page.waitForSelector(".tabs", { timeout: 15000 });
-    check("all 7 stages complete", (await page.locator(".stage-item.done").count()) === 7);
-
-    // --- Results ------------------------------------------------------------
-    check("4 requirements extracted", (await page.locator("tbody tr").count()) === 4);
-    check("clarification answer merged into the requirement", (await page.locator("tbody").textContent()).includes("p95 under 2 seconds"));
-    check("low-confidence requirement auto-escalated", (await page.locator(".badge-review").count()) >= 1);
-    await shot(page, "03-requirements");
-
-    await page.click('.tab:has-text("Compliance")');
-    const chips = await page.locator(".evidence-chip").allTextContents();
-    check("compliance rows carry KB citation chips", chips.length >= 1 && chips.every((c) => /^[A-Z]+-\d{3}$/.test(c)), JSON.stringify(chips));
-    check("derived security requirement carries its own citation chip", (await page.locator(".derived-item .evidence-chip").count()) >= 1);
-    await shot(page, "04-compliance");
-
-    await page.click('.tab:has-text("Conflicts")');
-    check("conflict detected and shown", (await page.locator(".conflict-item").count()) === 1);
-
-    await page.click('.tab:has-text("SDLC recommendation")');
-    check("6 SDLC candidates, top marked Recommended", (await page.locator(".sdlc-card").count()) === 6 && (await page.locator(".rec").count()) === 1);
-    check("SDLC candidates cite SDLC rules", (await page.locator(".sdlc-card .evidence-chip").allTextContents()).some((c) => c.startsWith("SDLC-")));
-    await shot(page, "05-sdlc");
-
-    await page.click('.tab:has-text("Traceability")');
-    check("traceability row per requirement", (await page.locator("tbody tr").count()) === 4);
-
-    await page.click('.tab:has-text("Knowledge base")');
-    await page.waitForSelector(".kb-item");
-    check("knowledge base browser lists all 37 items", (await page.locator(".kb-item").count()) === 37);
-    await page.click('.kb-filter:has-text("regulation")');
-    check("KB category filter works", (await page.locator(".kb-item").count()) === 7);
-
-    // --- Retrieval really fed each agent -----------------------------------
-    const log = fs.readFileSync(LOG, "utf8").trim().split("\n").map((l) => JSON.parse(l));
-    const idsFor = (agent) => log.filter((l) => l.agent === agent).flatMap((l) => l.evidenceIds);
-    check("Clarification agent received REQ- guideline evidence", idsFor("clarify").some((i) => i.startsWith("REQ-")));
-    check("Compliance agent received REG-/SEC- evidence", idsFor("compliance").some((i) => /^(REG|SEC)-/.test(i)));
-    check("SDLC agent received SDLC- rule evidence", idsFor("sdlc").some((i) => i.startsWith("SDLC-")));
-    check("Documentation agent received TPL- template evidence", idsFor("document").some((i) => i.startsWith("TPL-")));
-    check("Every agent ran (interview + 7 pipeline calls)", ["interview", "extract", "clarify", "classify", "compliance", "risk", "sdlc", "document"].every((a) => log.some((l) => l.agent === a)));
-
-    const archivedAnalyses = await page.evaluate(async () => (await (await fetch("/api/analyses")).json()).data);
-    check("completed analysis and its inputs are archived automatically", archivedAnalyses.length === 1 && archivedAnalyses[0].useCaseId === "payment");
+    await page.locator(".sidebar-nav [data-page='Requirements']").click();
+    for (const id of ["FR-001", "NFR-001", "NFR-002"]) {
+      const review = page.locator(`[data-review='${id}|approved']`);
+      if (await review.count()) {
+        const approvalResponse = page.waitForResponse((response) =>
+          response.url().includes("/approval") && response.request().postDataJSON()?.requirementId === id);
+        await review.first().click();
+        await approvalResponse;
+      }
+    }
+    await page.locator(".sidebar-nav [data-page='Overview']").click();
+    await page.locator("[data-owner-approval='approved']").click();
+    await page.locator(".approval-banner").waitFor({ state: "detached" });
+    check("owner review banner disappears after analysis approval", await page.locator(".approval-banner").count() === 0);
+    await page.locator(".sidebar-nav [data-page='Quality, Compliance & Risk']").click();
+    await page.locator(".quality-subnav [data-tab='Audit trail']").click();
+    check("owner approval is retained in the audit trail", (await page.locator("#content").innerText()).includes("owner-approval"));
     await page.reload();
-    await page.waitForFunction(() => document.body.classList.contains("authenticated"));
-    await page.waitForSelector(".tabs");
-    check("normal refresh restores the completed analysis page and its results", await page.locator("#interviewOptions").isVisible() && (await page.locator(".stage-item.done").count()) === 7 && (await page.locator("#ivList .chip").count()) === 1);
-    await page.route("**/api/pipeline/extract", (route) => route.fulfill({
-      status: 429,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: false, error: "Resource exhausted. Daily quota exceeded.", code: "upstream" }),
+    await page.locator(".sidebar-nav [data-page='Chat']").waitFor({ timeout: 30000 });
+    await page.locator("#historyList").getByText(/Canada payments/).first().waitFor();
+    check("reopening starts a blank workspace while completed analyses remain archived", !(await page.locator("#content").innerText()).includes("Old unfinished conversation") && await page.locator("#historyList").getByText(/Canada payments/).count() === 2);
+    await page.locator(`[data-open-analysis="${archive.id}"]`).click();
+    await page.locator(".sidebar-nav [data-page='Chat']").click();
+    const savedInputs = await page.locator("#content").innerText();
+    check("opening a saved analysis displays its original brief and clarification Q&A", savedInputs.includes("Build a digital banking system") && savedInputs.includes("What is a high-level acceptable payment-completion time") && savedInputs.includes("No more than two seconds for payment completion.") && savedInputs.includes("Keep partner selection open; TBD.") && await page.locator("[data-saved-clarification]").count() === 2);
+    await page.locator(`[data-open-analysis="${revisedArchive.id}"]`).click();
+    await page.locator(".sidebar-nav [data-page='Overview']").click();
+    check("approved saved analysis remains approved without a review banner", await page.locator(".approval-banner").count() === 0);
+
+    const log = fs.readFileSync(logPath, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+    const agents = new Set(log.map((entry) => entry.agent));
+    const expected = ["stakeholderInteraction", "requirementExtraction", "clarification", "classification", "conflictDetection", "compliance", "securityPrivacy", "riskAnalysis", "sdlcSelection", "documentation", "validation"];
+    check("separate specialist model calls completed", expected.every((name) => agents.has(name)), [...agents].join(", "));
+    check("compliance and SDLC calls received retrieved evidence IDs", ["compliance", "sdlcSelection"].every((name) => log.some((entry) => entry.agent === name && entry.evidenceIds.length > 0)));
+    check("raw pasted email and account identifier never reached the model mock", !fs.readFileSync(logPath, "utf8").includes("operations@example.test") && !fs.readFileSync(logPath, "utf8").includes("1234567890123456"));
+
+    await page.locator("#newProjectTop").click();
+    await page.locator("#startProjectBtn").waitFor();
+    await page.locator("#projectTitle").fill("Failed draft");
+    await page.locator("#projectDescription").fill("Build a fictional transfer system for the extraction failure test.");
+    await page.locator("#startProjectBtn").click();
+    await page.locator(".chat-message.assistant").first().waitFor();
+    await page.route("**/api/pipeline/analyze", (route) => route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: `data: ${JSON.stringify({ type: "stage", stage: { key: "extract", label: "Requirement extraction", status: "active", agent: "Requirement Extraction Agent" } })}\n\ndata: ${JSON.stringify({ type: "error", error: "Simulated extraction failure" })}\n\n`,
     }));
-    await page.click("#runBtn");
-    await page.waitForFunction(() => document.querySelector("#hint").textContent.includes("Draft interviews and input sources were discarded."));
-    const failedRunState = await page.evaluate(async () => {
-      const [workspace, analyses] = await Promise.all([fetch("/api/state"), fetch("/api/analyses")]);
-      return [await workspace.json(), (await analyses.json()).data];
-    });
-    check("quota failure clears current interviews and partial results without deleting completed archive", (await page.locator("#ivList .chip").count()) === 0 && await page.locator(".workspace-start").count() === 1 && !("interviews" in failedRunState[0].data) && failedRunState[1].length === 1);
-    await page.unroute("**/api/pipeline/extract");
-    check("no JavaScript errors in the browser", jsErrors.length === 0, jsErrors.join("; "));
-  } catch (e) {
-    console.log("FAIL  test crashed: " + e.message);
-    failed++;
+    await page.locator("#runAnalysis").click();
+    await page.getByText(/Analysis failed and its project draft was discarded/).waitFor();
+    const clearedChat = await page.locator("#projectChat .chat-message").allTextContents();
+    check("failed analysis clears its project and conversation immediately", await page.locator("#projectTitle").inputValue() === "" && await page.locator("#projectDescription").inputValue() === "" && clearedChat.length === 0);
+    await page.unroute("**/api/pipeline/analyze");
+    await page.reload();
+    await page.locator(".sidebar-nav [data-page='Chat']").waitFor();
+    await page.locator(".sidebar-nav [data-page='Chat']").click();
+    await page.locator("#startProjectBtn").waitFor();
+    const reloadedChat = await page.locator("#projectChat .chat-message").allTextContents();
+    check("failed analysis draft does not return after reopening the URL", await page.locator("#projectTitle").inputValue() === "" && await page.locator("#projectDescription").inputValue() === "" && reloadedChat.length === 0);
+  } catch (error) {
+    console.error(error);
+    if (page) console.error("Page state:\n", await page.locator("#content").innerText().catch(() => "(unavailable)"));
+    if (fs.existsSync(logPath)) console.error("Mock calls:\n", fs.readFileSync(logPath, "utf8"));
+    failed += 1;
   } finally {
-    await browser.close();
-    server.kill();
-    for (const f of [LOG, CACHE, DB, `${DB}-wal`, `${DB}-shm`]) if (fs.existsSync(f)) fs.unlinkSync(f);
+    if (browser) await browser.close();
+    if (server && server.exitCode === null) {
+      await new Promise((resolve) => {
+        server.once("exit", resolve);
+        server.kill("SIGTERM");
+      });
+    }
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
-  console.log(failed ? `\n${failed} check(s) failed` : "\nAll checks passed");
+  console.log(failed ? `\n${failed} failed` : "\nAll checks passed");
   process.exit(failed ? 1 : 0);
 })();
