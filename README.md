@@ -22,7 +22,7 @@ Start the application:
 npm start
 ```
 
-Open the local address printed by the server (by default **http://localhost:3000**) and create an account or sign in. Accounts have separate project workspaces and saved analyses.
+Open the local address printed by the server (by default **http://localhost:3001**) and create an account or sign in. Accounts have separate project workspaces and saved analyses.
 
 ## How to use it
 
@@ -34,10 +34,6 @@ Open the local address printed by the server (by default **http://localhost:3000
 6. Download the SRS as a PDF. Completed analyses are archived automatically and are available from **Saved analyses**.
 
 Reopening or refreshing the app starts with a blank project workspace; unfinished descriptions, chat, sources, and analysis results are discarded. Completed analyses are archived in **Saved analyses**, including the original project brief, supporting text, discovery conversation, and clarification questions with answers alongside the final results.
-
-## Model availability
-
-By default, generation calls try `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash-lite`, then `gemini-3.1-flash-lite` when a model reports high demand or capacity errors. These model IDs are listed as stable options in [Google's Gemini API model documentation](https://ai.google.dev/gemini-api/docs/models). The model from `GOOGLE_MODEL` is tried first; the rest are attempted immediately in order on capacity failure, without waiting to retry the busy model. If all models are busy, the pool waits briefly with backoff and tries the list again. Set `GOOGLE_MODEL_POOL` to override the list. Model availability and quotas depend on your project. Embeddings use a separate pool configured by `GOOGLE_EMBEDDING_MODEL_POOL`. Concurrent provider calls are queued, and capacity retries are bounded so an unavailable provider cannot leave an analysis pending forever.
 
 ## Architecture
 
